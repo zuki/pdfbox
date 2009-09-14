@@ -20,6 +20,7 @@ import java.awt.color.ColorSpace;
 import java.awt.color.ICC_ColorSpace;
 import java.io.IOException;
 import java.io.OutputStream;
+import java.util.Map;
 
 import org.apache.pdfbox.cos.COSArray;
 import org.apache.pdfbox.cos.COSBase;
@@ -27,7 +28,6 @@ import org.apache.pdfbox.cos.COSFloat;
 import org.apache.pdfbox.cos.COSName;
 import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.pdmodel.common.PDStream;
-import org.apache.pdfbox.exceptions.LoggingObject;
 
 /**
  * This class represents a color space in a pdf document.
@@ -35,7 +35,7 @@ import org.apache.pdfbox.exceptions.LoggingObject;
  * @author <a href="mailto:ben@benlitchfield.com">Ben Litchfield</a>
  * @version $Revision: 1.11 $
  */
-public final class PDColorSpaceFactory extends LoggingObject 
+public final class PDColorSpaceFactory
 {
     /**
      * Private constructor for utility classes.
@@ -56,10 +56,25 @@ public final class PDColorSpaceFactory extends LoggingObject
      */
     public static PDColorSpace createColorSpace( COSBase colorSpace ) throws IOException
     {
+        return createColorSpace( colorSpace, null );
+    }
+
+    /**
+     * This will create the correct color space given the name.
+     *
+     * @param colorSpace The color space object.
+     * @param colorSpaces The ColorSpace dictionary from the current resources, if any.
+     *
+     * @return The color space.
+     *
+     * @throws IOException If the color space name is unknown.
+     */
+    public static PDColorSpace createColorSpace( COSBase colorSpace, Map colorSpaces ) throws IOException
+    {
         PDColorSpace retval = null;
         if( colorSpace instanceof COSName )
         {
-            retval = createColorSpace( ((COSName)colorSpace).getName() );
+            retval = createColorSpace( ((COSName)colorSpace).getName(), colorSpaces );
         }
         else if( colorSpace instanceof COSArray )
         {
@@ -129,6 +144,21 @@ public final class PDColorSpaceFactory extends LoggingObject
      */
     public static PDColorSpace createColorSpace( String colorSpaceName ) throws IOException
     {
+        return createColorSpace(colorSpaceName, null);
+    }
+
+    /**
+     * This will create the correct color space given the name.
+     *
+     * @param colorSpaceName The name of the colorspace.
+     * @param colorSpaces The ColorSpace dictionary from the current resources, if any.
+     *
+     * @return The color space.
+     *
+     * @throws IOException If the color space name is unknown.
+     */
+    public static PDColorSpace createColorSpace( String colorSpaceName, Map colorSpaces ) throws IOException
+    {
         PDColorSpace cs = null;
         if( colorSpaceName.equals( PDDeviceCMYK.NAME ) ||
                  colorSpaceName.equals( PDDeviceCMYK.ABBREVIATED_NAME ) )
@@ -144,6 +174,10 @@ public final class PDColorSpaceFactory extends LoggingObject
                  colorSpaceName.equals( PDDeviceGray.ABBREVIATED_NAME ))
         {
             cs = new PDDeviceGray();
+        }
+        else if( colorSpaces != null && colorSpaces.get( colorSpaceName ) != null )
+        {
+            cs = (PDColorSpace)colorSpaces.get( colorSpaceName );
         }
         else if( colorSpaceName.equals( PDLab.NAME ) )
         {

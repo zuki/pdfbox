@@ -16,19 +16,20 @@
  */
 package org.apache.pdfbox.util.operator;
 
+import java.io.IOException;
 import java.util.List;
 
-import org.apache.pdfbox.pdmodel.graphics.color.PDColorSpaceInstance;
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
+import org.apache.pdfbox.pdmodel.graphics.color.PDCalRGB;
 import org.apache.pdfbox.pdmodel.graphics.color.PDColorSpace;
+import org.apache.pdfbox.pdmodel.graphics.color.PDColorState;
+import org.apache.pdfbox.pdmodel.graphics.color.PDDeviceCMYK;
 import org.apache.pdfbox.pdmodel.graphics.color.PDDeviceGray;
 import org.apache.pdfbox.pdmodel.graphics.color.PDDeviceRGB;
-import org.apache.pdfbox.pdmodel.graphics.color.PDDeviceCMYK;
 import org.apache.pdfbox.pdmodel.graphics.color.PDICCBased;
-import org.apache.pdfbox.pdmodel.graphics.color.PDCalRGB;
 import org.apache.pdfbox.pdmodel.graphics.color.PDSeparation;
 import org.apache.pdfbox.util.PDFOperator;
-
-import java.io.IOException;
 
 /**
  * 
@@ -37,6 +38,13 @@ import java.io.IOException;
  */
 public class SetNonStrokingSeparation extends OperatorProcessor 
 {
+
+    /**
+     * Log instance.
+     */
+    private static final Log log =
+        LogFactory.getLog(SetNonStrokingSeparation.class);
+
     /**
      * scn Set color space for non stroking operations.
      * @param operator The operator that is being executed.
@@ -45,7 +53,7 @@ public class SetNonStrokingSeparation extends OperatorProcessor
      */
     public void process(PDFOperator operator, List arguments) throws IOException
     {
-        PDColorSpaceInstance colorInstance = context.getGraphicsState().getNonStrokingColorSpace();
+        PDColorState colorInstance = context.getGraphicsState().getNonStrokingColor();
         PDColorSpace colorSpace = colorInstance.getColorSpace();
         List argList = arguments;
         
@@ -91,7 +99,7 @@ public class SetNonStrokingSeparation extends OperatorProcessor
             }
             else
             {
-                logger().warn("Not supported colorspace "+colorSpace.getName() 
+                log.warn("Not supported colorspace "+colorSpace.getName() 
                         + " within operator "+operator.getOperation());
             }
         }

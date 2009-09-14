@@ -21,6 +21,8 @@ import java.awt.image.ColorModel;
 
 import java.io.IOException;
 
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
 import org.apache.pdfbox.cos.COSArray;
 import org.apache.pdfbox.cos.COSBase;
 import org.apache.pdfbox.cos.COSName;
@@ -35,6 +37,11 @@ import org.apache.pdfbox.pdmodel.common.function.PDFunction;
  */
 public class PDSeparation extends PDColorSpace
 {
+    /**
+     * Log instance.
+     */
+    private static final Log log = LogFactory.getLog(PDSeparation.class);
+
     /**
      * The name of this color space.
      */
@@ -81,8 +88,7 @@ public class PDSeparation extends PDColorSpace
      */
     public int getNumberOfComponents() throws IOException
     {
-        //return 1;
-    return array.size();
+        return getAlternateColorSpace().getNumberOfComponents();
     }
 
     /**
@@ -92,7 +98,7 @@ public class PDSeparation extends PDColorSpace
      *
      * @throws IOException If there is an error creating the color space.
      */
-    public ColorSpace createColorSpace() throws IOException
+    protected ColorSpace createColorSpace() throws IOException
     {
         try
         {
@@ -103,19 +109,17 @@ public class PDSeparation extends PDColorSpace
 
             //logger().info(alt.toString());
 
-            ColorSpace colorspace = alt.createColorSpace();///dwilson 12/15/07
-
-            return colorspace;
+            return alt.getJavaColorSpace();
         }
         catch (IOException ioexception)
         {
-            logger().error(ioexception, ioexception);
+            log.error(ioexception, ioexception);
 
             throw ioexception;
         }
         catch (Exception exception)
         {
-            logger().error(exception, exception);
+            log.error(exception, exception);
             throw new IOException("Failed to Create ColorSpace");
         }
     }
@@ -131,7 +135,7 @@ public class PDSeparation extends PDColorSpace
      */
     public ColorModel createColorModel( int bpc ) throws IOException
     {
-        logger().info("About to create ColorModel for " + getAlternateColorSpace().toString());
+        log.info("About to create ColorModel for " + getAlternateColorSpace().toString());
         return getAlternateColorSpace().createColorModel(bpc);
     }
 

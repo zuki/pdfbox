@@ -29,6 +29,8 @@ import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
 import org.apache.pdfbox.pdmodel.PDPage;
 import org.apache.pdfbox.pdmodel.PDResources;
 import org.apache.pdfbox.pdmodel.common.PDRectangle;
@@ -51,6 +53,11 @@ import org.apache.pdfbox.util.TextPosition;
  */
 public class PageDrawer extends PDFStreamEngine
 {
+
+    /**
+     * Log instance.
+     */
+    private static final Log log = LogFactory.getLog(PageDrawer.class);
 
     private Graphics2D graphics;
     private Dimension pageSize;
@@ -132,20 +139,23 @@ public class PageDrawer extends PDFStreamEngine
         {
             if( this.getGraphicsState().getTextState().getRenderingMode() == PDTextState.RENDERING_MODE_FILL_TEXT )
             {
-                graphics.setColor( this.getGraphicsState().getNonStrokingColorSpace().createColor() );
+                graphics.setColor( this.getGraphicsState().getNonStrokingColor().getJavaColor() );
             }
             else if( this.getGraphicsState().getTextState().getRenderingMode() 
                         == PDTextState.RENDERING_MODE_STROKE_TEXT )
             {
-                graphics.setColor( this.getGraphicsState().getStrokingColorSpace().createColor() );
+                graphics.setColor( this.getGraphicsState().getStrokingColor().getJavaColor() );
             }
             else
             {
                 // TODO : need to implement....
-                logger().warn("Unsupported RenderingMode "+this.getGraphicsState().getTextState().getRenderingMode()
-                            +" in PageDrawer.processTextPosition()"
-                            + "Using RenderingMode "+PDTextState.RENDERING_MODE_FILL_TEXT+" instead");
-                graphics.setColor( this.getGraphicsState().getNonStrokingColorSpace().createColor() );
+                log.warn("Unsupported RenderingMode "
+                        + this.getGraphicsState().getTextState().getRenderingMode()
+                        + " in PageDrawer.processTextPosition()."
+                        + " Using RenderingMode "
+                        + PDTextState.RENDERING_MODE_FILL_TEXT
+                        + " instead");
+                graphics.setColor( this.getGraphicsState().getNonStrokingColor().getJavaColor() );
             }
             PDFont font = text.getFont();
 
@@ -160,6 +170,7 @@ public class PageDrawer extends PDFStreamEngine
             textPos.setValue(0, 1, (-1)*textPos.getValue(0, 1));
             textPos.setValue(1, 0, (-1)*textPos.getValue(1, 0));
             AffineTransform at = textPos.createAffineTransform();
+            graphics.setClip(getGraphicsState().getCurrentClippingPath());
             font.drawString( text.getCharacter(), graphics, text.getFontSize(), at, x, y );
         }
         catch( IOException io )
@@ -246,7 +257,7 @@ public class PageDrawer extends PDFStreamEngine
      */
     public void fillPath(int windingRule) throws IOException
     {
-        graphics.setColor( getGraphicsState().getNonStrokingColorSpace().createColor() );
+        graphics.setColor( getGraphicsState().getNonStrokingColor().getJavaColor() );
         getLinePath().setWindingRule(windingRule);
         graphics.setRenderingHint( RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_OFF );
         graphics.setClip(getGraphicsState().getCurrentClippingPath());
@@ -273,7 +284,7 @@ public class PageDrawer extends PDFStreamEngine
      */
     public void strokePath() throws IOException
     {
-        graphics.setColor( getGraphicsState().getStrokingColorSpace().createColor() ); 
+        graphics.setColor( getGraphicsState().getStrokingColor().getJavaColor() ); 
         graphics.setRenderingHint( RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_OFF );
         graphics.setClip(getGraphicsState().getCurrentClippingPath());
         GeneralPath path = getLinePath();
