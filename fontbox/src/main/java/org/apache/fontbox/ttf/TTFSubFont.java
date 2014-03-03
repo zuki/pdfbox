@@ -90,7 +90,9 @@ public class TTFSubFont
                 break;
             }
         }
+
         baseCmap = unicodeCmap;
+
         // add notdef character.
         addCharCode(0);
     }
@@ -330,7 +332,7 @@ public class TTFSubFont
     {
         return nr.getPlatformId() == NameRecord.PLATFORM_WINDOWS 
                 && nr.getPlatformEncodingId() == NameRecord.PLATFORM_ENCODING_WINDOWS_UNICODE 
-                && nr.getLanguageId() == 0 
+                //&& nr.getLanguageId() == 0 (ex, DevaVuSans uses 0x0409(=1033) United States)
                 && nr.getNameId() >= 0 && nr.getNameId() < 7;
     }
     
@@ -415,7 +417,8 @@ public class TTFSubFont
                 String value = nr.getString();
                 if (nr.getNameId() == 6 && this.nameSuffix != null) 
                 {
-                    value += this.nameSuffix;
+                    value = this.nameSuffix + "+" + value;
+                    //value += this.nameSuffix;
                 }
                 names[j] = value.getBytes(charset);
                 ++j;
@@ -955,7 +958,8 @@ public class TTFSubFont
         writeUint32(dos,p.getMaxMemType42());
         writeUint32(dos,p.getMimMemType1());
         writeUint32(dos,p.getMaxMemType1());
-        writeUint16(dos,baseTTF.getHorizontalHeader().getNumberOfHMetrics());
+        //writeUint16(dos,baseTTF.getHorizontalHeader().getNumberOfHMetrics());
+        writeUint16(dos,glyphIds.size());
             
         List<String> additionalNames = new ArrayList<String>();
         Map<String,Integer> additionalNamesIndices = new HashMap<String,Integer>();
@@ -1088,6 +1092,32 @@ public class TTFSubFont
         }
     }
 
+    private TTFTable getTable(String tag)
+    {
+        TTFTable selected = null;
+        for (TTFTable table : this.baseTTF.getTables())
+        {
+            if (tag.equals(table.getTag()))
+            {
+                selected = table;
+                break;
+            }
+        }
+        return selected;
+    }
+
+    private byte[] builOtherTable(String tag) throws IOException 
+    {
+        byte[] rawBytes = new byte[0];
+        TTFTable table = this.getTable(tag);
+        if (table != null)
+        {
+            rawBytes = table.getRawBytes();
+        }
+
+        return rawBytes;
+    }
+
     /**
      * Write the subfont to the given output stream.
      * 
@@ -1115,8 +1145,11 @@ public class TTFSubFont
                 'maxp'    maximum profile
                 'name'    naming
                 'post'    PostScript
+                'cvt '    Control Value Table
+                'prep'    CVT Program
+                'fpgm'    Font program
              */
-            String[] tableNames = {"OS/2","cmap","glyf","head","hhea","hmtx","loca","maxp","name","post"};
+            String[] tableNames = {"OS/2","cmap","glyf","head","hhea","hmtx","loca","maxp","name","post", "cvt ", "prep", "fpgm"};
             byte [][] tables = new byte[tableNames.length][];
             long[] newOffsets = new long[this.glyphIds.size()+1];
             tables[3] = this.buildHeadTable();
@@ -1129,6 +1162,9 @@ public class TTFSubFont
             tables[1] = this.buildCmapTable();
             tables[5] = this.buildHmtxTable();
             tables[9] = this.buildPostTable();
+            tables[10] = this.builOtherTable("cvt ");
+            tables[11] = this.builOtherTable("prep");
+            tables[12] = this.builOtherTable("fpgm");
             long checksum = writeFileHeader(dos,tableNames.length);
             long offset = 12L + 16L * tableNames.length;
             for (int i=0;i<tableNames.length;++i) 
