@@ -20,12 +20,14 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.StringTokenizer;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.pdfbox.cos.COSArray;
 import org.apache.pdfbox.cos.COSBase;
 import org.apache.pdfbox.cos.COSDictionary;
+import org.apache.pdfbox.cos.COSInteger;
 import org.apache.pdfbox.cos.COSName;
 import org.apache.pdfbox.cos.COSNumber;
 import org.apache.pdfbox.io.IOUtils;
@@ -46,6 +48,7 @@ public abstract class PDCIDFont extends PDSimpleFont
     private static final Log LOG = LogFactory.getLog(PDCIDFont.class);
 
     private Map<Integer, Float> widthCache = null;
+
     private long defaultWidth = 0;
 
     /**
@@ -374,4 +377,58 @@ public abstract class PDCIDFont extends PDSimpleFont
         }
         return result;
     }
+
+    /**
+     * Set the CIDSystemInfo.
+     *
+     * @param systemInfo - the CIDSystemInfo object
+     */
+    public void setCIDSystemInfo(PDCIDSystemInfo cidsysteminfo)
+    {
+        font.setItem(COSName.CIDSYSTEMINFO, cidsysteminfo.getCIDSystemInfo());
+    }
+
+    public void setFontWidths(COSArray wArray)
+    {
+        font.setItem(COSName.W, wArray);
+        extractWidths();
+    }
+
+    public void setFontWidths(String wString)
+    {
+       StringTokenizer st = new StringTokenizer(wString);
+       boolean inArray = false;
+       COSArray outerArray = new COSArray();
+       COSArray innerArray  = null;
+
+       while (st.hasMoreTokens())
+       {
+           String token = st.nextToken();
+           if (token.charAt(0) == '[')
+           {
+               innerArray = new COSArray();
+               token = token.substring(1);
+               inArray = true;
+           }
+           if (token.endsWith("]"))
+           {
+               token = token.substring(0, (token.length() - 1));
+               innerArray.add(COSInteger.get(Long.parseLong(token)));
+               outerArray.add(innerArray);
+               inArray = false;
+           }
+           else if (inArray)
+           {
+               innerArray.add(COSInteger.get(Long.parseLong(token)));
+           }
+           else
+           {
+               outerArray.add(COSInteger.get(Long.parseLong(token)));
+           }
+        }
+
+        font.setItem(COSName.W, outerArray);
+        extractWidths();
+    }
+
 }
