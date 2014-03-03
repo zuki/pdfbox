@@ -12,7 +12,7 @@ public class PDCIDSystemInfo
         new PDCIDSystemInfo("Adobe", "Japan1", 6);
 
     public static final PDCIDSystemInfo ADOBE_IDENTITY_0 = 
-        new PDCIDSystemInfo("Adobe", "Identity", 60);
+        new PDCIDSystemInfo("Adobe", "Identity", 0);
 
     public PDCIDSystemInfo(String registry, String ordering, int supplement)
     {
