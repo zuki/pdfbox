@@ -8,11 +8,17 @@ public class PDCIDSystemInfo
 {
     private COSDictionary cidsysteminfo;
 
-    public static final PDCIDSystemInfo ADOBE_JAPAN1_6 = 
-        new PDCIDSystemInfo("Adobe", "Japan1", 6);
-
     public static final PDCIDSystemInfo ADOBE_IDENTITY_0 = 
-        new PDCIDSystemInfo("Adobe", "Identity", 60);
+        new PDCIDSystemInfo("Adobe", "Identity", 0);
+
+    public PDCIDSystemInfo(String info)
+    {
+        String[] parts = info.split("-");
+        cidsysteminfo = new COSDictionary();
+        cidsysteminfo.setString(COSName.REGISTRY, parts[0]);
+        cidsysteminfo.setString(COSName.ORDERING, parts[1]);
+        cidsysteminfo.setInt(COSName.SUPPLEMENT, Integer.valueOf(parts[2]));
+    }
 
     public PDCIDSystemInfo(String registry, String ordering, int supplement)
     {
