@@ -99,24 +99,5 @@ public class TTFTable
      */
     public void initData( TrueTypeFont ttf, TTFDataStream data ) throws IOException
     {
-        rawBytes = data.read((int)length);
     }
-
-    /**
-     * @param rawBytes The rawBytes to set.
-     */
-    public void setRawBytes(byte[] rawBytes) 
-    {
-        this.rawBytes = Arrays.copyOf(rawBytes, rawBytes.length);
-        this.length = (long)this.rawBytes.length;
-    }
-
-    /**
-     * @return Returns the raw contents.
-     */
-    public byte[] getRawBytes() 
-    {
-        return rawBytes;
-    }
-
 }

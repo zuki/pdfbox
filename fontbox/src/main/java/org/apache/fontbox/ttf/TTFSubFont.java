@@ -55,7 +55,7 @@ public class TTFSubFont
     private static final byte[] PAD_BUF = new byte[] {0,0,0};
     
     private final TrueTypeFont baseTTF;
-    private final String nameSuffix;
+    private final String namePrefix;
     private final CMAPEncodingEntry baseCmap;
     
     // A map of unicode char codes to glyph IDs of the original font.
@@ -65,16 +65,16 @@ public class TTFSubFont
     private final SortedSet<Integer> glyphIds;
     
     /**
-     * Constructs a subfont based on the given font using the given suffix.
+     * Constructs a subfont based on the given font using the given prefix.
      * 
      * @param baseFont the base font of the subfont
-     * @param suffix suffix used for the naming
+     * @param prefix prefix used for the naming
      * 
      */
-    public TTFSubFont(TrueTypeFont baseFont, String suffix) 
+    public TTFSubFont(TrueTypeFont baseFont, String prefix) 
     {
         baseTTF = baseFont;
-        nameSuffix = suffix;
+        namePrefix = prefix;
         characters = new TreeMap<Integer, Integer>();
         glyphIds = new TreeSet<Integer>();
         
@@ -415,10 +415,9 @@ public class TTFSubFont
                     }
                 }
                 String value = nr.getString();
-                if (nr.getNameId() == 6 && this.nameSuffix != null) 
+                if (nr.getNameId() == 6 && this.namePrefix != null) 
                 {
-                    value = this.nameSuffix + "+" + value;
-                    //value += this.nameSuffix;
+                    value = this.namePrefix + value;
                 }
                 names[j] = value.getBytes(charset);
                 ++j;
@@ -1092,32 +1091,6 @@ public class TTFSubFont
         }
     }
 
-    private TTFTable getTable(String tag)
-    {
-        TTFTable selected = null;
-        for (TTFTable table : this.baseTTF.getTables())
-        {
-            if (tag.equals(table.getTag()))
-            {
-                selected = table;
-                break;
-            }
-        }
-        return selected;
-    }
-
-    private byte[] builOtherTable(String tag) throws IOException 
-    {
-        byte[] rawBytes = new byte[0];
-        TTFTable table = this.getTable(tag);
-        if (table != null)
-        {
-            rawBytes = table.getRawBytes();
-        }
-
-        return rawBytes;
-    }
-
     /**
      * Write the subfont to the given output stream.
      * 
@@ -1145,11 +1118,8 @@ public class TTFSubFont
                 'maxp'    maximum profile
                 'name'    naming
                 'post'    PostScript
-                'cvt '    Control Value Table
-                'prep'    CVT Program
-                'fpgm'    Font program
              */
-            String[] tableNames = {"OS/2","cmap","glyf","head","hhea","hmtx","loca","maxp","name","post", "cvt ", "prep", "fpgm"};
+            String[] tableNames = {"OS/2","cmap","glyf","head","hhea","hmtx","loca","maxp","name","post"};
             byte [][] tables = new byte[tableNames.length][];
             long[] newOffsets = new long[this.glyphIds.size()+1];
             tables[3] = this.buildHeadTable();
@@ -1162,9 +1132,6 @@ public class TTFSubFont
             tables[1] = this.buildCmapTable();
             tables[5] = this.buildHmtxTable();
             tables[9] = this.buildPostTable();
-            tables[10] = this.builOtherTable("cvt ");
-            tables[11] = this.builOtherTable("prep");
-            tables[12] = this.builOtherTable("fpgm");
             long checksum = writeFileHeader(dos,tableNames.length);
             long offset = 12L + 16L * tableNames.length;
             for (int i=0;i<tableNames.length;++i) 
