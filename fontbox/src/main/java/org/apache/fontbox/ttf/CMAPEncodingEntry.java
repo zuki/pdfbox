@@ -23,6 +23,9 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Map.Entry;
 
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
+
 /**
  * An encoding entry for a cmap.
  * 
@@ -31,6 +34,8 @@ import java.util.Map.Entry;
  */
 public class CMAPEncodingEntry
 {
+    private static final Log LOG = LogFactory.getLog(CMAPEncodingEntry.class);
+
     private static final long LEAD_OFFSET = 0xD800 - (0x10000 >> 10);
     private static final long SURROGATE_OFFSET = 0x10000 - (0xD800 << 10) - 0xDC00;
 
@@ -139,7 +144,7 @@ public class CMAPEncodingEntry
 
         glyphIdToCharacterCode = new int[numGlyphs];
         // -- Read all sub header
-        for (long i = 0; i <= nbGroups; ++i)
+        for (long i = 0; i < nbGroups; ++i)
         {
             long firstCode = data.readUnsignedInt();
             long endCode = data.readUnsignedInt();
@@ -228,7 +233,7 @@ public class CMAPEncodingEntry
     {
         long nbGroups = data.readUnsignedInt();
         glyphIdToCharacterCode = new int[numGlyphs];
-        for (long i = 0; i <= nbGroups; ++i)
+        for (long i = 0; i < nbGroups; ++i)
         {
             long firstCode = data.readUnsignedInt();
             long endCode = data.readUnsignedInt();
@@ -236,12 +241,16 @@ public class CMAPEncodingEntry
 
             if (firstCode < 0 || firstCode > 0x0010FFFF || (firstCode >= 0x0000D800 && firstCode <= 0x0000DFFF))
             {
+                LOG.info("1st STEP: Invalid Characters codes");
+                LOG.info(String.format("  firstCode: %d (%08X)", firstCode, firstCode));
                 throw new IOException("Invalid Characters codes");
             }
 
             if ((endCode > 0 && endCode < firstCode) || endCode > 0x0010FFFF
                     || (endCode >= 0x0000D800 && endCode <= 0x0000DFFF))
             {
+                LOG.info("2nd STEP: Invalid Characters codes");
+                LOG.info(String.format("  endCode: %d (%08X)", endCode, endCode));
                 throw new IOException("Invalid Characters codes");
             }
 
@@ -250,12 +259,17 @@ public class CMAPEncodingEntry
 
                 if ((firstCode + j) > Integer.MAX_VALUE)
                 {
+                    LOG.info("3rd STEP: Character Code greater than Integer.MAX_VALUE");
+                    LOG.info(String.format("  firstCode: %d (%08X) + j: %d", firstCode, firstCode, j));
                     throw new IOException("Character Code greater than Integer.MAX_VALUE");
                 }
 
                 long glyphIndex = (startGlyph + j);
                 if (glyphIndex > numGlyphs || glyphIndex > Integer.MAX_VALUE)
                 {
+                    LOG.info("4th STEP: CMap contains an invalid glyph index");
+                    LOG.info(String.format("  firstCode: %d (%08X), endCode: %d (%08X), startGlyph: %d (%08X), j: %d", firstCode, firstCode, endCode, endCode, startGlyph, startGlyph, j));
+                    LOG.info(String.format("  glyphIndex: %d (%08X), numGlyphs: %d (%08X)", glyphIndex, glyphIndex, numGlyphs, numGlyphs));
                     throw new IOException("CMap contains an invalid glyph index");
                 }
                 glyphIdToCharacterCode[(int) glyphIndex] = (int) (firstCode + j);
@@ -275,7 +289,7 @@ public class CMAPEncodingEntry
     protected void processSubtype13(TrueTypeFont ttf, TTFDataStream data, int numGlyphs) throws IOException
     {
         long nbGroups = data.readUnsignedInt();
-        for (long i = 0; i <= nbGroups; ++i)
+        for (long i = 0; i < nbGroups; ++i)
         {
             long firstCode = data.readUnsignedInt();
             long endCode = data.readUnsignedInt();
