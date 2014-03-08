@@ -55,20 +55,28 @@ public class PDUnicodeCIDFontType2Font extends PDType0Font
      */
     private static final Log LOG = LogFactory.getLog(PDUnicodeCIDFontType2Font.class);
 
+    /** Original font path */
     private static String fontPath;
 
+    /** Does the original font have serif */
     private static boolean isSerif;
 
+    /** Prefix of the embedded font */
     private static String prefix;
 
+    /** Font name of the embedded font*/
     private static String bfname;
 
+    /** Default font width of the embedded font */
     private long defaultW;
 
+    /** Array of font widths of the embedded font */
     private COSArray wArray;
 
+    /** ToUnicode stream of the embedded font */
     private PDStream toUnicode;
 
+    /** Map from unicode to glyph id */
     private Map<Integer, Integer> code2Glyph;
 
     public PDUnicodeCIDFontType2Font(String fontPath, boolean isSerif)
@@ -82,9 +90,29 @@ public class PDUnicodeCIDFontType2Font extends PDType0Font
     {
         int[] used = getUsedCodes(text);
 
+        boolean isTTC = false;
+        int fontIndex = -1;
+        int ttcPos = fontPath.toLowerCase().indexOf("ttc");
+        if (ttcPos > -1)
+        {
+            isTTC = true;
+            fontIndex = Integer.valueOf(fontPath.substring(ttcPos+4));
+            fontPath = fontPath.substring(0, ttcPos+3);
+        }
+
         RAFDataStream raf = new RAFDataStream(new File(fontPath), "r");
         CIDFontType2Parser parser = new CIDFontType2Parser(false);
-        TrueTypeFont ttf = parser.parseTTF(raf);
+        TrueTypeFont ttf = null;
+        if (isTTC)
+        {
+            parser.parseTTC(raf);
+            ttf = parser.parseTTF(raf, fontIndex);
+        }
+        else
+        {
+            ttf = parser.parseTTF(raf);
+        }
+
         TTFSubFont subFont = new TTFSubFont(ttf, prefix);
         for (int cp : used)
         {
