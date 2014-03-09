@@ -34,6 +34,7 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.fontbox.util.BoundingBox;
 import org.apache.pdfbox.cos.COSArray;
+import org.apache.pdfbox.cos.COSBase;
 import org.apache.pdfbox.cos.COSDictionary;
 import org.apache.pdfbox.cos.COSInteger;
 import org.apache.pdfbox.cos.COSName;
@@ -67,28 +68,27 @@ public class PDUnicodeCIDFontType2Font extends PDType0Font
     /** Font name of the embedded font*/
     private static String bfname;
 
+    /** Codes used in wrriten text */
+    private TreeSet<Integer> usedCodes = new TreeSet<Integer>();
+
     /** Default font width of the embedded font */
     private long defaultW;
 
     /** Array of font widths of the embedded font */
     private COSArray wArray;
 
-    /** ToUnicode stream of the embedded font */
-    private PDStream toUnicode;
+    /** Embedded font */
+    private TTFSubFont subFont;
 
-    /** Map from unicode to glyph id */
-    private Map<Integer, Integer> code2Glyph;
+    /** Map from unicode to cid */
+    private CMAPEncodingEntry unicode2cidMap;
 
-    public PDUnicodeCIDFontType2Font(String fontPath, boolean isSerif)
+    public PDUnicodeCIDFontType2Font(String fontPath, boolean isSerif) throws IOException
     {
+        super();
         this.fontPath = fontPath;
         this.isSerif = isSerif;
         this.prefix = getPrefix();
-    }
-
-    public void loadFont(PDDocument document, String text) throws IOException
-    {
-        int[] used = getUsedCodes(text);
 
         boolean isTTC = false;
         int fontIndex = -1;
@@ -113,7 +113,26 @@ public class PDUnicodeCIDFontType2Font extends PDType0Font
             ttf = parser.parseTTF(raf);
         }
 
-        TTFSubFont subFont = new TTFSubFont(ttf, prefix);
+        subFont = new TTFSubFont(ttf, prefix);
+
+        PDFontDescriptorDictionary fd = new PDFontDescriptorDictionary();
+        loadDescriptorDictionary(ttf, fd);
+
+        PDCIDFontType2Font desendant = new PDCIDFontType2Font();
+        desendant.setBaseFont(bfname);
+        desendant.setCIDSystemInfo(PDCIDSystemInfo.ADOBE_IDENTITY_0);
+        desendant.setFontDescriptor(fd);
+        desendant.setDefaultWidth(defaultW);
+
+        setBaseFont(bfname);
+        setEncoding(COSName.IDENTITY_H);
+        setDescendantFont(desendant);
+
+    }
+
+    public void reloadFont(PDDocument document)  throws IOException
+    {
+        int[] used = getUsedCodes();
         for (int cp : used)
         {
             subFont.addCharCode(cp);
@@ -121,159 +140,26 @@ public class PDUnicodeCIDFontType2Font extends PDType0Font
 
         ByteArrayOutputStream bos = new ByteArrayOutputStream();
         subFont.writeToStream(bos);
-
         ByteArrayInputStream bis = new ByteArrayInputStream(bos.toByteArray());
         PDStream fontStream = new PDStream(document, bis);
         fontStream.addCompression();
         fontStream.getStream().setInt(COSName.LENGTH1, fontStream.getByteArray().length);
 
-        PDFontDescriptorDictionary fd = new PDFontDescriptorDictionary();
+        PDCIDFontType2Font descendantFont = (PDCIDFontType2Font) getDescendantFont();
+        PDFontDescriptorDictionary fd = (PDFontDescriptorDictionary) descendantFont.getFontDescriptor();
+        fd.resetFontFile2(fontStream);
+
+
         InputStream stream = fontStream.createInputStream();
-        loadDescriptorDictionary(document, fd, stream, used);
-        fd.setFontFile2(fontStream);
-
-        PDCIDFontType2Font desendant = new PDCIDFontType2Font();
-        desendant.setBaseFont(bfname);
-        desendant.setCIDSystemInfo(PDCIDSystemInfo.ADOBE_IDENTITY_0);
-        desendant.setCID2GID(COSName.IDENTITY);
-        desendant.setFontDescriptor(fd);
-        desendant.setDefaultWidth(defaultW);
-        desendant.setFontWidths(wArray);
-
-        PDType0Font type0 = new PDType0Font();
-        type0.setBaseFont(bfname);
-        type0.setEncoding(COSName.IDENTITY_H);
-        type0.setDescendantFont(desendant);
-        type0.setToUnicode(toUnicode);
-
-        this.font = (COSDictionary) type0.getCOSObject();
-    }
-
-    private void loadDescriptorDictionary(PDDocument document, PDFontDescriptorDictionary fd, InputStream ttfData, int[] used) throws IOException
-    {
         TrueTypeFont ttf = null;
         try
         {
             TTFParser parser = new TTFParser();
-            ttf = parser.parseTTF(ttfData);
-
-            NamingTable naming = ttf.getNaming();
-            List<NameRecord> records = naming.getNameRecords();
-            for (int i = 0; i < records.size(); i++)
-            {
-                NameRecord nr = records.get(i);
-                if (nr.getNameId() == NameRecord.NAME_POSTSCRIPT_NAME)
-                {
-                    bfname = nr.getString();
-                    fd.setFontName(bfname);
-                }
-            }
-
-            OS2WindowsMetricsTable os2 = ttf.getOS2Windows();
-            boolean isSymbolic = false;
-            switch (os2.getFamilyClass())
-            {
-            case OS2WindowsMetricsTable.FAMILY_CLASS_SYMBOLIC:
-                isSymbolic = true;
-                break;
-            case OS2WindowsMetricsTable.FAMILY_CLASS_SCRIPTS:
-                fd.setScript(true);
-                break;
-            case OS2WindowsMetricsTable.FAMILY_CLASS_CLAREDON_SERIFS:
-            case OS2WindowsMetricsTable.FAMILY_CLASS_FREEFORM_SERIFS:
-            case OS2WindowsMetricsTable.FAMILY_CLASS_MODERN_SERIFS:
-            case OS2WindowsMetricsTable.FAMILY_CLASS_OLDSTYLE_SERIFS:
-            case OS2WindowsMetricsTable.FAMILY_CLASS_SLAB_SERIFS:
-                isSerif = true;
-                break;
-            default:
-                // do nothing
-            }
-            switch (os2.getWidthClass())
-            {
-                case OS2WindowsMetricsTable.WIDTH_CLASS_ULTRA_CONDENSED:
-                    fd.setFontStretch("UltraCondensed");
-                    break;
-                case OS2WindowsMetricsTable.WIDTH_CLASS_EXTRA_CONDENSED:
-                    fd.setFontStretch("ExtraCondensed");
-                    break;
-                case OS2WindowsMetricsTable.WIDTH_CLASS_CONDENSED:
-                    fd.setFontStretch("Condensed");
-                    break;
-                case OS2WindowsMetricsTable.WIDTH_CLASS_SEMI_CONDENSED:
-                    fd.setFontStretch("SemiCondensed");
-                    break;
-                case OS2WindowsMetricsTable.WIDTH_CLASS_MEDIUM:
-                    fd.setFontStretch("Normal");
-                    break;
-                case OS2WindowsMetricsTable.WIDTH_CLASS_SEMI_EXPANDED:
-                    fd.setFontStretch("SemiExpanded");
-                    break;
-                case OS2WindowsMetricsTable.WIDTH_CLASS_EXPANDED:
-                    fd.setFontStretch("Expanded");
-                    break;
-                case OS2WindowsMetricsTable.WIDTH_CLASS_EXTRA_EXPANDED:
-                    fd.setFontStretch("ExtraExpanded");
-                    break;
-                case OS2WindowsMetricsTable.WIDTH_CLASS_ULTRA_EXPANDED:
-                    fd.setFontStretch("UltraExpanded");
-                    break;
-                default:
-                    // do nothing
-            }
-            fd.setFontWeight(os2.getWeightClass());
-            fd.setSymbolic(isSymbolic);
-            fd.setNonSymbolic(!isSymbolic);
-            fd.setSerif(isSerif);
-
-            HeaderTable header = ttf.getHeader();
-            PDRectangle rect = new PDRectangle();
-            float scaling = 1000f / header.getUnitsPerEm();
-            rect.setLowerLeftX(Math.round(header.getXMin() * scaling));
-            rect.setLowerLeftY(Math.round(header.getYMin() * scaling));
-            rect.setUpperRightX(Math.round(header.getXMax() * scaling));
-            rect.setUpperRightY(Math.round(header.getYMax() * scaling));
-            fd.setFontBoundingBox(rect);
-
-            HorizontalHeaderTable hHeader = ttf.getHorizontalHeader();
-            fd.setAscent(Math.round(hHeader.getAscender() * scaling));
-            fd.setDescent(Math.round(hHeader.getDescender() * scaling));
-
-            GlyphTable glyphTable = ttf.getGlyph();
-            GlyphData[] glyphs = glyphTable.getGlyphs();
-
-            PostScriptTable ps = ttf.getPostScript();
-            fd.setFixedPitch(ps.getIsFixedPitch() > 0);
-            fd.setItalicAngle(ps.getItalicAngle());
-
-            String[] names = ps.getGlyphNames();
-
-            if (names != null)
-            {
-                for (int i = 0; i < names.length; i++)
-                {
-                    // if we have a capital H then use that, otherwise use the
-                    // tallest letter
-                    if (names[i].equals("H"))
-                    {
-                        fd.setCapHeight(Math.round(glyphs[i].getBoundingBox().getUpperRightY() / scaling));
-                    }
-                    if (names[i].equals("x"))
-                    {
-                        fd.setXHeight(Math.round(glyphs[i].getBoundingBox().getUpperRightY() / scaling));
-                    }
-                }
-            }
-
-            // hmm there does not seem to be a clear definition for StemV,
-            // this is close enough and I am told it doesn't usually get used.
-            fd.setStemV(Math.round(fd.getFontBoundingBox().getWidth() * .13f));
-
-            fd.setFlags(fd.getFlags());
+            ttf = parser.parseTTF(stream);
 
             CMAPTable cmapTable = ttf.getCMAP();
             CMAPEncodingEntry[] cmaps = cmapTable.getCmaps();
-            CMAPEncodingEntry uniMap = null;
+            CMAPEncodingEntry gidMap = null;
 
             for (int i = 0; i < cmaps.length; i++)
             {
@@ -282,36 +168,58 @@ public class PDUnicodeCIDFontType2Font extends PDType0Font
                     int platformEncoding = cmaps[i].getPlatformEncodingId();
                     if (CMAPTable.ENCODING_UNICODE == platformEncoding)
                     {
-                        uniMap = cmaps[i];
+                        gidMap = cmaps[i];
                         break;
                     }
                 }
             }
 
-            Object[] codeGlyphPairs = new Object[used.length];
-            code2Glyph = new HashMap<Integer, Integer>();
+            Object[] unicode2cid = new Object[used.length];
+            TreeSet<Integer> gidset = new TreeSet<Integer>();
+            Map<Integer, Integer> cid2gid = new HashMap<Integer, Integer>();
+            Map<Integer, Integer> gid2cid = new HashMap<Integer, Integer>();
+            int maxcid = Integer.MIN_VALUE;
             for (int i=0, len=used.length; i<len; i++)
             {
-                int[] codeGlyphPair = { used[i], uniMap.getGlyphId(used[i]) };
-                codeGlyphPairs[i] = codeGlyphPair;
-                code2Glyph.put(codeGlyphPair[0], codeGlyphPair[1]);
+                int unicode = used[i];
+                int cid = unicode2cidMap.getGlyphId(unicode);
+                int gid = gidMap.getGlyphId(unicode);
+                int[] pair = {unicode, cid};
+                unicode2cid[i] = pair;
+                gidset.add(gid);
+                cid2gid.put(cid, gid);
+                gid2cid.put(gid, cid);
+                if (cid > maxcid)
+                {
+                    maxcid = cid;
+                }
             }
+
+            int[] gids = new int[used.length];
+            int j = 0;
+            for (int gid : gidset)
+            {
+                gids[j++] = gid;
+            }
+
+            HeaderTable header = ttf.getHeader();
+            float scaling = 1000f / header.getUnitsPerEm();
 
             HorizontalMetricsTable hmtx = ttf.getHorizontalMetrics();
             int[] widths = hmtx.getAdvanceWidth();
             wArray = new COSArray();
             COSArray inner;
-            for (int i=0, len=codeGlyphPairs.length; i<len; i++)
+            for (int i=0, len=gids.length; i<len; i++)
             {
-                int[] codeGlyphPair = (int[])codeGlyphPairs[i];
-                wArray.add(COSInteger.get(codeGlyphPair[1]));
+                wArray.add(COSInteger.get(gid2cid.get(gids[i])));
                 inner = new COSArray();
-                inner.add(COSInteger.get(Math.round(widths[codeGlyphPair[1]] * scaling)));
+                inner.add(COSInteger.get(Math.round(widths[gids[i]] * scaling)));
                 wArray.add(inner); 
             }
+            descendantFont.resetFontWidths(wArray);
+            descendantFont.resetCID2GID(getCIDToGID(document, maxcid, cid2gid));
 
-            defaultW = Math.round(widths[0] * scaling);
-            setToUnicode(document, codeGlyphPairs);
+            this.resetToUnicode(getToUnicode(document, unicode2cid));
         }
         finally
         {
@@ -323,9 +231,146 @@ public class PDUnicodeCIDFontType2Font extends PDType0Font
 
     }
 
-    public int getGlyphID(int code)
+    private void loadDescriptorDictionary(TrueTypeFont ttf, PDFontDescriptorDictionary fd) throws IOException
     {
-        return code2Glyph.containsKey(code) ? code2Glyph.get(code) : 0;
+        NamingTable naming = ttf.getNaming();
+        List<NameRecord> records = naming.getNameRecords();
+        for (int i = 0; i < records.size(); i++)
+        {
+            NameRecord nr = records.get(i);
+            if (nr.getNameId() == NameRecord.NAME_POSTSCRIPT_NAME)
+            {
+                bfname = nr.getString();
+                fd.setFontName(bfname);
+            }
+        }
+
+        OS2WindowsMetricsTable os2 = ttf.getOS2Windows();
+        boolean isSymbolic = false;
+        switch (os2.getFamilyClass())
+        {
+        case OS2WindowsMetricsTable.FAMILY_CLASS_SYMBOLIC:
+            isSymbolic = true;
+            break;
+        case OS2WindowsMetricsTable.FAMILY_CLASS_SCRIPTS:
+            fd.setScript(true);
+            break;
+        case OS2WindowsMetricsTable.FAMILY_CLASS_CLAREDON_SERIFS:
+        case OS2WindowsMetricsTable.FAMILY_CLASS_FREEFORM_SERIFS:
+        case OS2WindowsMetricsTable.FAMILY_CLASS_MODERN_SERIFS:
+        case OS2WindowsMetricsTable.FAMILY_CLASS_OLDSTYLE_SERIFS:
+        case OS2WindowsMetricsTable.FAMILY_CLASS_SLAB_SERIFS:
+            isSerif = true;
+            break;
+        default:
+            // do nothing
+        }
+        switch (os2.getWidthClass())
+        {
+            case OS2WindowsMetricsTable.WIDTH_CLASS_ULTRA_CONDENSED:
+                fd.setFontStretch("UltraCondensed");
+                break;
+            case OS2WindowsMetricsTable.WIDTH_CLASS_EXTRA_CONDENSED:
+                fd.setFontStretch("ExtraCondensed");
+                break;
+            case OS2WindowsMetricsTable.WIDTH_CLASS_CONDENSED:
+                fd.setFontStretch("Condensed");
+                break;
+            case OS2WindowsMetricsTable.WIDTH_CLASS_SEMI_CONDENSED:
+                fd.setFontStretch("SemiCondensed");
+                break;
+            case OS2WindowsMetricsTable.WIDTH_CLASS_MEDIUM:
+                fd.setFontStretch("Normal");
+                break;
+            case OS2WindowsMetricsTable.WIDTH_CLASS_SEMI_EXPANDED:
+                fd.setFontStretch("SemiExpanded");
+                break;
+            case OS2WindowsMetricsTable.WIDTH_CLASS_EXPANDED:
+                fd.setFontStretch("Expanded");
+                break;
+            case OS2WindowsMetricsTable.WIDTH_CLASS_EXTRA_EXPANDED:
+                fd.setFontStretch("ExtraExpanded");
+                break;
+            case OS2WindowsMetricsTable.WIDTH_CLASS_ULTRA_EXPANDED:
+                fd.setFontStretch("UltraExpanded");
+                break;
+            default:
+                // do nothing
+        }
+        fd.setFontWeight(os2.getWeightClass());
+        fd.setSymbolic(isSymbolic);
+        fd.setNonSymbolic(!isSymbolic);
+        fd.setSerif(isSerif);
+
+        HeaderTable header = ttf.getHeader();
+        PDRectangle rect = new PDRectangle();
+        float scaling = 1000f / header.getUnitsPerEm();
+        rect.setLowerLeftX(Math.round(header.getXMin() * scaling));
+        rect.setLowerLeftY(Math.round(header.getYMin() * scaling));
+        rect.setUpperRightX(Math.round(header.getXMax() * scaling));
+        rect.setUpperRightY(Math.round(header.getYMax() * scaling));
+        fd.setFontBoundingBox(rect);
+
+        HorizontalHeaderTable hHeader = ttf.getHorizontalHeader();
+        fd.setAscent(Math.round(hHeader.getAscender() * scaling));
+        fd.setDescent(Math.round(hHeader.getDescender() * scaling));
+
+        GlyphTable glyphTable = ttf.getGlyph();
+        GlyphData[] glyphs = glyphTable.getGlyphs();
+
+        PostScriptTable ps = ttf.getPostScript();
+        fd.setFixedPitch(ps.getIsFixedPitch() > 0);
+        fd.setItalicAngle(ps.getItalicAngle());
+
+        String[] names = ps.getGlyphNames();
+
+        if (names != null)
+        {
+            for (int i = 0; i < names.length; i++)
+            {
+                // if we have a capital H then use that, otherwise use the
+                // tallest letter
+                if (names[i].equals("H"))
+                {
+                    fd.setCapHeight(Math.round(glyphs[i].getBoundingBox().getUpperRightY() / scaling));
+                }
+                if (names[i].equals("x"))
+                {
+                    fd.setXHeight(Math.round(glyphs[i].getBoundingBox().getUpperRightY() / scaling));
+                }
+            }
+        }
+
+        // hmm there does not seem to be a clear definition for StemV,
+        // this is close enough and I am told it doesn't usually get used.
+        fd.setStemV(Math.round(fd.getFontBoundingBox().getWidth() * .13f));
+
+        fd.setFlags(fd.getFlags());
+
+        CMAPTable cmapTable = ttf.getCMAP();
+        CMAPEncodingEntry[] cmaps = cmapTable.getCmaps();
+
+        for (int i = 0; i < cmaps.length; i++)
+        {
+            if (cmaps[i].getPlatformId() == CMAPTable.PLATFORM_WINDOWS)
+            {
+                int platformEncoding = cmaps[i].getPlatformEncodingId();
+                if (CMAPTable.ENCODING_UNICODE == platformEncoding)
+                {
+                    unicode2cidMap = cmaps[i];
+                    break;
+                }
+            }
+        }
+
+        HorizontalMetricsTable hmtx = ttf.getHorizontalMetrics();
+        int[] widths = hmtx.getAdvanceWidth();
+        defaultW = Math.round(widths[0] * scaling);
+    }
+
+    public int getCID(int unicode)
+    {
+        return unicode2cidMap.getGlyphId(unicode);
     }
 
     private String getPrefix()
@@ -339,17 +384,20 @@ public class PDUnicodeCIDFontType2Font extends PDType0Font
         return sb.toString() + "+";
     }
 
-    private int[] getUsedCodes(String text)
+    public void setUsedCodes(String text)
     {
-        TreeSet<Integer> codes = new TreeSet<Integer>();
-        for (int i = 0, len=text.length(), cp; i < len; i += Character.charCount(cp)) {
+        for (int i = 0, len=text.length(), cp; i < len; i += Character.charCount(cp)) 
+        {
             cp = text.codePointAt(i);
-            codes.add(cp);
+            usedCodes.add(cp);
         }
+    }
 
-        int[] used = new int[codes.size()];
+    private int[] getUsedCodes()
+    {
+        int[] used = new int[usedCodes.size()];
         int j = 0;
-        for (Integer code : codes)
+        for (Integer code : usedCodes)
         {
             used[j++] = code.intValue();
         }
@@ -357,7 +405,7 @@ public class PDUnicodeCIDFontType2Font extends PDType0Font
         return used;
     }
 
-    private void setToUnicode(PDDocument document, Object[] codeGlyphPairs) throws IOException
+    private PDStream getToUnicode(PDDocument document, Object[] unicode2cid) throws IOException
     {
         StringBuilder sb = new StringBuilder(
             "/CIDInit /ProcSet findresource begin\n" +
@@ -375,19 +423,19 @@ public class PDUnicodeCIDFontType2Font extends PDType0Font
             "endcodespacerange\n"
         );
         int size = 0;
-        for (int i = 0; i < codeGlyphPairs.length; ++i)
+        for (int i = 0; i < unicode2cid.length; ++i)
         {
             if (size == 0) 
             {
                 if (i != 0) {
                     sb.append("endbfchar\n");
                 }
-                size = Math.min(100, codeGlyphPairs.length - i);
+                size = Math.min(100, unicode2cid.length - i);
                 sb.append(size).append(" beginbfchar\n");
             }
             --size;
-            int[] codeGlyphPair = (int[])codeGlyphPairs[i];
-            sb.append(StringUtil.toHex(codeGlyphPair[1])).append(" ").append(StringUtil.toHex(codeGlyphPair[0])).append('\n');
+            int[] pair = (int[])unicode2cid[i];
+            sb.append(StringUtil.toHex(pair[1])).append(" ").append(StringUtil.toHex(pair[0])).append('\n');
         }
         sb.append(
             "endbfchar\n" +
@@ -397,7 +445,33 @@ public class PDUnicodeCIDFontType2Font extends PDType0Font
         );
 
         ByteArrayInputStream bis = new ByteArrayInputStream(sb.toString().getBytes(Charset.forName("US-ASCII")));
-        toUnicode = new PDStream(document, bis);
+        PDStream toUnicode = new PDStream(document, bis);
         toUnicode.addCompression();
+        return toUnicode;
     }
+
+    private COSBase getCIDToGID(PDDocument document, int maxcid, Map<Integer, Integer> cid2gid) throws IOException
+    {
+        byte[] bs = new byte[2*(maxcid+1)];
+        for (int i=0; i<=maxcid; i++)
+        {
+            if (cid2gid.containsKey(i))
+            {
+                int gid = cid2gid.get(i);
+                bs[i*2]   = (byte)((gid >> 8) & 0xFF);
+                bs[i*2+1] = (byte)(gid & 0xFF);
+            }
+            else
+            {
+                bs[i*2]   = (byte)0;
+                bs[i*2+1] = (byte)0;
+            }
+        }
+        ByteArrayInputStream bis = new ByteArrayInputStream(bs);
+        PDStream cidToGID = new PDStream(document, bis);
+        cidToGID.addCompression();
+        return cidToGID.getCOSObject();
+    }
+
+
 }

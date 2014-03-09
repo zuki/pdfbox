@@ -431,4 +431,15 @@ public abstract class PDCIDFont extends PDSimpleFont
         extractWidths();
     }
 
+    public void resetFontWidths(COSArray wArray)
+    {
+        if (font.getItem(COSName.W) != null)
+        {
+            font.removeItem(COSName.W);
+            widthCache = null;
+        }
+        font.setItem(COSName.W, wArray);
+        extractWidths();
+    }
+
 }

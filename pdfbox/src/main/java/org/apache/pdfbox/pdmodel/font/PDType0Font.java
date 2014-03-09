@@ -215,4 +215,13 @@ public class PDType0Font extends PDSimpleFont
         font.setItem(COSName.TO_UNICODE, toUnicode);
     }
 
+    public void resetToUnicode(PDStream toUnicode)
+    {
+        if (font.getItem(COSName.TO_UNICODE) != null)
+        {
+            font.removeItem(COSName.TO_UNICODE);
+        }
+        font.setItem(COSName.TO_UNICODE, toUnicode);
+    }
+
 }
