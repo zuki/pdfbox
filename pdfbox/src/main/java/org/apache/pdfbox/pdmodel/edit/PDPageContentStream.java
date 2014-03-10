@@ -41,7 +41,7 @@ import org.apache.pdfbox.pdmodel.PDResources;
 import org.apache.pdfbox.pdmodel.common.COSStreamArray;
 import org.apache.pdfbox.pdmodel.common.PDStream;
 import org.apache.pdfbox.pdmodel.font.PDFont;
-import org.apache.pdfbox.pdmodel.font.PDUnicodeCIDFontType2Font;
+import org.apache.pdfbox.pdmodel.font.PDType0TTFont;
 import org.apache.pdfbox.pdmodel.graphics.color.PDColorSpace;
 import org.apache.pdfbox.pdmodel.graphics.color.PDDeviceCMYK;
 import org.apache.pdfbox.pdmodel.graphics.color.PDDeviceGray;
@@ -560,7 +560,7 @@ public class PDPageContentStream
         appendRawCommands(SHOW_TEXT);
     }
 
-    public void drawStringByCID(PDUnicodeCIDFontType2Font font, String text) throws IOException
+    public void drawStringByCID(PDType0TTFont font, String text) throws IOException
     {
         if (!inTextMode)
         {

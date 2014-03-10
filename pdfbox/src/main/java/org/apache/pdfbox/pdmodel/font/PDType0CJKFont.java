@@ -47,12 +47,12 @@ import org.apache.pdfbox.util.ResourceLoader;
  * @author Keiji Suzuki</a>
  * 
  */
-public class PDCJKCIDFontType0Font extends PDType0Font
+public class PDType0CJKFont extends PDType0Font
 {
     /**
      * Log instance.
      */
-    private static final Log LOG = LogFactory.getLog(PDCJKCIDFontType0Font.class);
+    private static final Log LOG = LogFactory.getLog(PDType0CJKFont.class);
 
     private static final Map<String, String> SUPPORTED_FONTS = new HashMap<String, String>();
 
@@ -90,7 +90,7 @@ public class PDCJKCIDFontType0Font extends PDType0Font
         Properties fontProperties = ResourceLoader.loadProperties(path, false);
         if (fontProperties == null)
         {
-            throw new MissingResourceException("Font properties not found: " + path, PDCJKCIDFontType0Font.class.getName(), path);
+            throw new MissingResourceException("Font properties not found: " + path, PDType0CJKFont.class.getName(), path);
         }
 
         PDFontDescriptorDictionary fd = new PDFontDescriptorDictionary();
@@ -134,7 +134,7 @@ public class PDCJKCIDFontType0Font extends PDType0Font
             Properties supportedProperties = ResourceLoader.loadProperties(location, false);
             if (supportedProperties == null)
             {
-                throw new MissingResourceException("Supported fonts properties not found: " + location, PDCJKCIDFontType0Font.class.getName(), location);
+                throw new MissingResourceException("Supported fonts properties not found: " + location, PDType0CJKFont.class.getName(), location);
             }
             Enumeration<?> names = supportedProperties.propertyNames();
             for (Object name : Collections.list(names))

@@ -49,12 +49,12 @@ import org.apache.pdfbox.util.StringUtil;
  * @author Keiji Suzuki</a>
  * 
  */
-public class PDUnicodeCIDFontType2Font extends PDType0Font
+public class PDType0TTFont extends PDType0Font
 {
     /**
      * Log instance.
      */
-    private static final Log LOG = LogFactory.getLog(PDUnicodeCIDFontType2Font.class);
+    private static final Log LOG = LogFactory.getLog(PDType0TTFont.class);
 
     /** Original font path */
     private static String fontPath;
@@ -83,7 +83,7 @@ public class PDUnicodeCIDFontType2Font extends PDType0Font
     /** Map from unicode to cid */
     private CMAPEncodingEntry unicode2cidMap;
 
-    public PDUnicodeCIDFontType2Font(String fontPath, boolean isSerif) throws IOException
+    public PDType0TTFont(String fontPath, boolean isSerif) throws IOException
     {
         super();
         this.fontPath = fontPath;
