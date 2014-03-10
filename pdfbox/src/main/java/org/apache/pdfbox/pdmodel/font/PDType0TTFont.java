@@ -23,6 +23,7 @@ import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.nio.charset.Charset;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
@@ -74,15 +75,21 @@ public class PDType0TTFont extends PDType0Font
     /** Default font width of the embedded font */
     private long defaultW;
 
-    /** Array of font widths of the embedded font */
-    private COSArray wArray;
-
     /** Embedded font */
     private TTFSubFont subFont;
 
     /** Map from unicode to cid */
     private CMAPEncodingEntry unicode2cidMap;
 
+    /**
+     * Constructor.
+     *
+     * @param fontpath The absolute path of original font. When use ttc font, add 'comma' and 
+     *          the index of using font after the font path.
+     * @param isSerif Does the font have serif
+     *
+     * @throws IOException If an error occures while font parsing.
+     */
     public PDType0TTFont(String fontPath, boolean isSerif) throws IOException
     {
         super();
@@ -90,12 +97,10 @@ public class PDType0TTFont extends PDType0Font
         this.isSerif = isSerif;
         this.prefix = getPrefix();
 
-        boolean isTTC = false;
         int fontIndex = -1;
         int ttcPos = fontPath.toLowerCase().indexOf("ttc");
         if (ttcPos > -1)
         {
-            isTTC = true;
             fontIndex = Integer.valueOf(fontPath.substring(ttcPos+4));
             fontPath = fontPath.substring(0, ttcPos+3);
         }
@@ -103,7 +108,7 @@ public class PDType0TTFont extends PDType0Font
         RAFDataStream raf = new RAFDataStream(new File(fontPath), "r");
         CIDFontType2Parser parser = new CIDFontType2Parser(false);
         TrueTypeFont ttf = null;
-        if (isTTC)
+        if (fontIndex > -1)
         {
             parser.parseTTC(raf);
             ttf = parser.parseTTF(raf, fontIndex);
@@ -130,6 +135,13 @@ public class PDType0TTFont extends PDType0Font
 
     }
 
+    /**
+     *  Reload embedded font with used codes. You must call this method
+     *    before calling document.save()
+     *
+     *  @param document The PDDocument.
+     *  @throws IOException
+     */
     public void reloadFont(PDDocument document)  throws IOException
     {
         int[] used = getUsedCodes();
@@ -174,32 +186,24 @@ public class PDType0TTFont extends PDType0Font
                 }
             }
 
-            Object[] unicode2cid = new Object[used.length];
-            TreeSet<Integer> gidset = new TreeSet<Integer>();
+            Map<Integer, Integer> unicode2cid = new LinkedHashMap<Integer, Integer>();
             Map<Integer, Integer> cid2gid = new HashMap<Integer, Integer>();
             Map<Integer, Integer> gid2cid = new HashMap<Integer, Integer>();
+            TreeSet<Integer> gidset = new TreeSet<Integer>();
             int maxcid = Integer.MIN_VALUE;
             for (int i=0, len=used.length; i<len; i++)
             {
                 int unicode = used[i];
                 int cid = unicode2cidMap.getGlyphId(unicode);
                 int gid = gidMap.getGlyphId(unicode);
-                int[] pair = {unicode, cid};
-                unicode2cid[i] = pair;
-                gidset.add(gid);
+                unicode2cid.put(unicode, cid);
                 cid2gid.put(cid, gid);
                 gid2cid.put(gid, cid);
+                gidset.add(gid);
                 if (cid > maxcid)
                 {
                     maxcid = cid;
                 }
-            }
-
-            int[] gids = new int[used.length];
-            int j = 0;
-            for (int gid : gidset)
-            {
-                gids[j++] = gid;
             }
 
             HeaderTable header = ttf.getHeader();
@@ -207,15 +211,13 @@ public class PDType0TTFont extends PDType0Font
 
             HorizontalMetricsTable hmtx = ttf.getHorizontalMetrics();
             int[] widths = hmtx.getAdvanceWidth();
-            wArray = new COSArray();
-            COSArray inner;
-            for (int i=0, len=gids.length; i<len; i++)
+            StringBuilder sb = new StringBuilder();
+            for (Integer gid : gidset)
             {
-                wArray.add(COSInteger.get(gid2cid.get(gids[i])));
-                inner = new COSArray();
-                inner.add(COSInteger.get(Math.round(widths[gids[i]] * scaling)));
-                wArray.add(inner); 
+                sb.append(" ").append(gid2cid.get(gid.intValue()))
+                  .append(" ").append(Math.round(widths[gid.intValue()] * scaling));
             }
+            COSArray wArray = descendantFont.getFontWidthsArray(sb.toString().substring(1));
             descendantFont.resetFontWidths(wArray);
             descendantFont.resetCID2GID(getCIDToGID(document, maxcid, cid2gid));
 
@@ -405,7 +407,8 @@ public class PDType0TTFont extends PDType0Font
         return used;
     }
 
-    private PDStream getToUnicode(PDDocument document, Object[] unicode2cid) throws IOException
+    private PDStream getToUnicode(PDDocument document, Map<Integer, Integer> unicode2cid)
+        throws IOException
     {
         StringBuilder sb = new StringBuilder(
             "/CIDInit /ProcSet findresource begin\n" +
@@ -422,20 +425,19 @@ public class PDType0TTFont extends PDType0Font
             "<0000> <FFFF>\n" +
             "endcodespacerange\n"
         );
-        int size = 0;
-        for (int i = 0; i < unicode2cid.length; ++i)
+        int size = 0, i = 0;
+        for (Integer unicode : unicode2cid.keySet())
         {
             if (size == 0) 
             {
                 if (i != 0) {
                     sb.append("endbfchar\n");
                 }
-                size = Math.min(100, unicode2cid.length - i);
+                size = Math.min(100, unicode2cid.size() - i);
                 sb.append(size).append(" beginbfchar\n");
             }
-            --size;
-            int[] pair = (int[])unicode2cid[i];
-            sb.append(StringUtil.toHex(pair[1])).append(" ").append(StringUtil.toHex(pair[0])).append('\n');
+            --size; ++i;
+            sb.append(StringUtil.toHex(unicode2cid.get(unicode))).append(" ").append(StringUtil.toHex(unicode.intValue())).append('\n');
         }
         sb.append(
             "endbfchar\n" +

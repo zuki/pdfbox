@@ -23,7 +23,6 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.MissingResourceException;
 import java.util.Properties;
-import java.util.StringTokenizer;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -117,7 +116,7 @@ public class PDType0CJKFont extends PDType0Font
         cid.setCIDSystemInfo(new PDCIDSystemInfo(fontProperties.getProperty("CIDSystemInfo")));
         cid.setFontDescriptor(fd);
         cid.setDefaultWidth(Integer.valueOf(fontProperties.getProperty("DW")).intValue());
-        cid.setFontWidths(getWidths(fontProperties.getProperty("W")));
+        cid.setFontWidths(fontProperties.getProperty("W"));
 
         PDType0Font font = new PDType0Font();
         font.setBaseFont(fontName);
@@ -148,120 +147,6 @@ public class PDType0CJKFont extends PDType0Font
         {
             LOG.error("error while reading the supported fonts property file.", io);
         }
-    }
-
-    private static COSArray getWidths(String wString) throws IOException
-    {
-        COSArray outer = new COSArray();
-        COSArray inner = null;
-
-        StringTokenizer st = new StringTokenizer(wString);
-        if (st.countTokens() % 2 != 0)
-        {
-            throw new IOException("wString is invalid");
-        }
-        else if (st.countTokens() == 2)
-        {
-            outer.add(COSInteger.get(Long.parseLong(st.nextToken())));
-            inner = new COSArray();
-            inner.add(COSInteger.get(Long.parseLong(st.nextToken())));
-            outer.add(inner);
-            return outer;
-        }
-
-        final int FIRST = 0;
-        final int BRACKET = 1;
-        final int SERIAL = 2;
-
-        long lastCid   = Long.parseLong(st.nextToken());
-        long lastValue = Long.parseLong(st.nextToken());
-        outer.add(COSInteger.get(lastCid));
-        int state = FIRST;
-
-        while (st.hasMoreTokens())
-        {
-            long cid   = Long.parseLong(st.nextToken());
-            long value = Long.parseLong(st.nextToken());
-
-            switch (state)
-            {
-                case FIRST:
-                {
-                    if (cid == lastCid + 1 && value == lastValue) 
-                    {
-                        state = SERIAL;
-                    }
-                    else if (cid == lastCid + 1) 
-                    {
-                        state = BRACKET;
-                        inner = new COSArray();
-                        inner.add(COSInteger.get(lastValue));
-                    }
-                    else 
-                    {
-                        inner = new COSArray();
-                        inner.add(COSInteger.get(lastValue));
-                        outer.add(inner);
-                        outer.add(COSInteger.get(cid));
-                    }
-                    break;
-                }
-                case BRACKET:
-                {
-                    if (cid == lastCid + 1 && value == lastValue)
-                    {
-                        state = SERIAL;
-                        outer.add(inner);
-                        outer.add(COSInteger.get(lastCid));
-                    }
-                    else if (cid == lastCid + 1)
-                    {
-                        inner.add(COSInteger.get(lastValue));
-                    }
-                    else 
-                    {
-                        state = FIRST;
-                        inner.add(COSInteger.get(lastCid));
-                        outer.add(inner);
-                        outer.add(COSInteger.get(cid));
-                    }
-                    break;
-                }
-                case SERIAL:
-                {
-                    if (cid != lastCid + 1 || value != lastValue)
-                    {
-                        outer.add(COSInteger.get(lastCid));
-                        outer.add(COSInteger.get(lastValue));
-                        outer.add(COSInteger.get(cid));
-                        state = FIRST;
-                    }
-                    break;
-                }
-            }
-            lastValue = value;
-            lastCid = cid;
-        }
-        switch (state) {
-            case FIRST: {
-                inner = new COSArray();
-                inner.add(COSInteger.get(lastValue));
-                outer.add(inner);
-                break;
-            }
-            case BRACKET: {
-                inner.add(COSInteger.get(lastValue));
-                outer.add(inner);
-                break;
-            }
-            case SERIAL: {
-                outer.add(COSInteger.get(lastCid));
-                outer.add(COSInteger.get(lastValue));
-                break;
-            }
-        }
-
-        return outer;
     }
 
 }
