@@ -161,11 +161,6 @@ public class PDType0Font extends PDSimpleFont
 
         if (retval == null)
         {
-            if (cmap.getName().indexOf("-UTF16-") > -1 && length % 2 == 0)
-            {
-                return new String(c, offset, length, "UTF-16BE");
-            }
-
             int result = cmap.lookupCID(c, offset, length);
             if (result != -1)
             {
