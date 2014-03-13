@@ -97,7 +97,7 @@ public class PDType0CJKFont extends PDType0Font
         fd.setFlags(Integer.valueOf(fontProperties.getProperty("Flags")).intValue());
 
         String fontBBox = fontProperties.getProperty("FontBBox");
-        String[] bb = fontBBox.substring(1, fontBBox.length() - 2).split(" ");
+        String[] bb = fontBBox.substring(1, fontBBox.length() - 1).split(" ");
         BoundingBox bbox = new BoundingBox();
         bbox.setLowerLeftX(Integer.valueOf(bb[0]).intValue());
         bbox.setLowerLeftY(Integer.valueOf(bb[1]).intValue());
