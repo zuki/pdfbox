@@ -249,7 +249,7 @@ public class PDType0TTFont extends PDType0Font
             NameRecord nr = records.get(i);
             if (nr.getNameId() == NameRecord.NAME_POSTSCRIPT_NAME)
             {
-                bfname = nr.getString();
+                bfname = prefix + nr.getString();
                 fd.setFontName(bfname);
             }
         }
