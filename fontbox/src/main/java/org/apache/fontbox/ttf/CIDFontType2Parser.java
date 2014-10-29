@@ -36,6 +36,10 @@ public class CIDFontType2Parser extends AbstractTTFParser
 		super(isEmbedded);
 	}
 
+    public CIDFontType2Parser(boolean isEmbedded, boolean resolve) {
+        super(isEmbedded, resolve);
+    }
+
     /**
      * Parse a TTC file and set the offset for the each font
      * 
@@ -99,7 +103,6 @@ public class CIDFontType2Parser extends AbstractTTFParser
             raf.readUnsignedInt();  // ulDsigLength
         }
     }
-
 
     /**
      * Parse a file and get a true type font.

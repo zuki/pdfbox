@@ -22,7 +22,7 @@ import org.apache.fontbox.util.BoundingBox;
 
 /**
  * A glyph data record in the glyf table.
- * 
+ *
  * @author Ben Litchfield (ben@benlitchfield.com)
  * @version $Revision: 1.1 $
  */
@@ -35,15 +35,16 @@ public class GlyphData
     private BoundingBox boundingBox = null;
     private short numberOfContours;
     private GlyfDescript glyphDescription = null;
-    
+
     /**
      * This will read the required data from the stream.
-     * 
+     *
      * @param ttf The font that is being read.
      * @param data The stream to read the data from.
+     * @param resolve The flag whether resolve glyphDescritpion
      * @throws IOException If there is an error reading the data.
      */
-    public void initData( TrueTypeFont ttf, TTFDataStream data ) throws IOException
+    public void initData( TrueTypeFont ttf, TTFDataStream data, boolean resolve ) throws IOException
     {
         numberOfContours = data.readSignedShort();
         xMin = data.readSignedShort();
@@ -52,18 +53,21 @@ public class GlyphData
         yMax = data.readSignedShort();
         boundingBox = new BoundingBox(xMin, yMin, xMax, yMax);
 
-        if (numberOfContours >= 0) 
+        if (resolve)
         {
-            // create a simple glyph
-            glyphDescription = new GlyfSimpleDescript(numberOfContours, data);
-        }
-        else 
-        {
-            // create a composite glyph
-            glyphDescription = new GlyfCompositeDescript(data, ttf.getGlyph());
+            if (numberOfContours >= 0)
+            {
+                // create a simple glyph
+                glyphDescription = new GlyfSimpleDescript(numberOfContours, data);
+            }
+            else
+            {
+                // create a composite glyph
+                glyphDescription = new GlyfCompositeDescript(data, ttf.getGlyph());
+            }
         }
     }
-    
+
     /**
      * @return Returns the boundingBox.
      */
@@ -92,7 +96,7 @@ public class GlyphData
     {
         this.numberOfContours = numberOfContoursValue;
     }
-   
+
     /**
      * Returns the description of the glyph.
      * @return the glyph description
@@ -101,12 +105,12 @@ public class GlyphData
     {
         return glyphDescription;
     }
-    
+
     /**
      * Returns the xMax value.
      * @return the XMax value
      */
-    public short getXMaximum() 
+    public short getXMaximum()
     {
         return xMax;
     }
@@ -115,7 +119,7 @@ public class GlyphData
      * Returns the xMin value.
      * @return the xMin value
      */
-    public short getXMinimum() 
+    public short getXMinimum()
     {
         return xMin;
     }
@@ -124,7 +128,7 @@ public class GlyphData
      * Returns the yMax value.
      * @return the yMax value
      */
-    public short getYMaximum() 
+    public short getYMaximum()
     {
         return yMax;
     }
@@ -133,7 +137,7 @@ public class GlyphData
      * Returns the yMin value.
      * @return the yMin value
      */
-    public short getYMinimum() 
+    public short getYMinimum()
     {
         return yMin;
     }

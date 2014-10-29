@@ -25,18 +25,20 @@ import java.util.List;
 
 /**
  * This class represents a true type font parser.
- * 
+ *
  */
 abstract class AbstractTTFParser
 {
 
     protected boolean isEmbedded = false;
 
+    protected boolean resolve = true;
+
     /**
      * Constructor.
-     * 
+     *
      * @param fontIsEmbedded indicates whether the font is embedded or not.
-     * 
+     *
      */
     public AbstractTTFParser(boolean fontIsEmbedded)
     {
@@ -44,8 +46,21 @@ abstract class AbstractTTFParser
     }
 
     /**
+     * Constructor.
+     *
+     * @param fontIsEmbedded indicates whether the font is embedded or not.
+     * @param resolve indicates whether resolve glyphDescription of GlyphTable
+     *
+     */
+    public AbstractTTFParser(boolean fontIsEmbedded, boolean resolve)
+    {
+        isEmbedded = fontIsEmbedded;
+        this.resolve = resolve;
+    }
+
+    /**
      * Parse a file and get a true type font.
-     * 
+     *
      * @param ttfFile The TTF file.
      * @return A true type font.
      * @throws IOException If there is an error parsing the true type font.
@@ -58,7 +73,7 @@ abstract class AbstractTTFParser
 
     /**
      * Parse a file and get a true type font.
-     * 
+     *
      * @param ttfFile The TTF file.
      * @return A true type font.
      * @throws IOException If there is an error parsing the true type font.
@@ -71,7 +86,7 @@ abstract class AbstractTTFParser
 
     /**
      * Parse a file and get a true type font.
-     * 
+     *
      * @param ttfData The TTF data to parse.
      * @return A true type font.
      * @throws IOException If there is an error parsing the true type font.
@@ -83,7 +98,7 @@ abstract class AbstractTTFParser
 
     /**
      * Parse a file and get a true type font.
-     * 
+     *
      * @param raf The TTF file.
      * @return A true type font.
      * @throws IOException If there is an error parsing the true type font.
@@ -101,7 +116,6 @@ abstract class AbstractTTFParser
             TTFTable table = readTableDirectory(raf);
             font.addTable(table);
         }
-
         // need to initialize a couple tables in a certain order
         parseTables(font, raf);
 
@@ -110,7 +124,7 @@ abstract class AbstractTTFParser
 
     /**
      * Parse all tables and check if all needed tables are present.
-     * 
+     *
      * @param font the TrueTypeFont instance holding the parsed data.
      * @param raf the data stream of the to be parsed ttf font
      * @throws IOException If there is an error parsing the true type font.
@@ -170,6 +184,15 @@ abstract class AbstractTTFParser
         loc.initData(font, raf);
         initialized.add(loc);
 
+        GlyphTable glyph = font.getGlyph();
+        if (glyph == null)
+        {
+            throw new IOException("glyf is mandatory");
+        }
+        raf.seek(glyph.getOffset());
+        glyph.initData(font, raf, resolve);
+        initialized.add(glyph);
+
         Iterator<TTFTable> iter = font.getTables().iterator();
         while (iter.hasNext())
         {
@@ -182,10 +205,6 @@ abstract class AbstractTTFParser
         }
 
         // check other mandatory tables
-        if (font.getGlyph() == null)
-        {
-            throw new IOException("glyf is mandatory");
-        }
         if (font.getNaming() == null && !isEmbedded)
         {
             throw new IOException("name is mandatory");
@@ -255,4 +274,5 @@ abstract class AbstractTTFParser
         retval.setLength(raf.readUnsignedInt());
         return retval;
     }
+
 }

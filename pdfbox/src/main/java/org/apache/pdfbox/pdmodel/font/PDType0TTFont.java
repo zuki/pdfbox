@@ -109,7 +109,7 @@ public class PDType0TTFont extends PDType0Font
         }
 
         RAFDataStream raf = new RAFDataStream(new File(fontPath), "r");
-        CIDFontType2Parser parser = new CIDFontType2Parser(false);
+        CIDFontType2Parser parser = new CIDFontType2Parser(false, false);
         TrueTypeFont ttf = null;
         if (fontIndex > -1)
         {
@@ -120,7 +120,6 @@ public class PDType0TTFont extends PDType0Font
         {
             ttf = parser.parseTTF(raf);
         }
-
         subFont = new TTFSubFont(ttf, prefix);
 
         PDFontDescriptorDictionary fd = new PDFontDescriptorDictionary();
@@ -135,7 +134,6 @@ public class PDType0TTFont extends PDType0Font
         setBaseFont(bfname);
         setEncoding(COSName.IDENTITY_H);
         setDescendantFont(descendant);
-
     }
 
     /**
