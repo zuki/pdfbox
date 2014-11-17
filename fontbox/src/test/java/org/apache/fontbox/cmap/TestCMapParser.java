@@ -59,16 +59,16 @@ public class TestCMapParser extends TestCase
         assertEquals("bytes 01 0A from bfchar <010A> <002B>", str4, cMap.toUnicode(toInt(bytes4)));
 
         // CID mappings
-        int cid1 = 65;
-        assertEquals("CID 65 from cidrange <0000> <00ff> 0 ", 65, cMap.toCID(cid1));
+        int code1 = 0x65;
+        assertEquals("CID 65 from cidrange <0000> <00ff> 0 ", 101, cMap.toCID(code1));
 
         int cid2 = 280;
-        int strCID2 = 0x0118;
-        assertEquals("CID 280 from cidrange <0100> <01ff> 256", strCID2, cMap.toCID(cid2));
+        int code2 = 0x0118;
+        assertEquals("CID 280 from cidrange <0100> <01ff> 256", cid2, cMap.toCID(code2));
 
         int cid3 = 520;
-        int strCID3 = 0x0208;
-        assertEquals("CID 520 from cidchar <0208> 520", strCID3, cMap.toCID(cid3));
+        int code3 = 0x0208;
+        assertEquals("CID 520 from cidchar <0208> 520", cid3, cMap.toCID(code3));
     }
 
     private int toInt(byte[] data)
