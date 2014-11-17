@@ -29,6 +29,7 @@ import org.apache.fontbox.ttf.OpenTypeFont;
 import org.apache.fontbox.ttf.TTFParser;
 import org.apache.fontbox.ttf.TrueTypeFont;
 import org.apache.fontbox.util.BoundingBox;
+import org.apache.pdfbox.cos.COSArray;
 import org.apache.pdfbox.cos.COSBase;
 import org.apache.pdfbox.cos.COSDictionary;
 import org.apache.pdfbox.cos.COSName;
@@ -145,6 +146,22 @@ public class PDCIDFontType2 extends PDCIDFont
         cid2gid = readCIDToGIDMap();
         COSBase map = dict.getDictionaryObject(COSName.CID_TO_GID_MAP);
         hasIdentityCid2Gid = map instanceof COSName && ((COSName) map).getName().equals("Identity");
+    }
+
+    /**
+     * Constructor.
+     *
+     * @param fontDictionary The font dictionary according to the PDF specification.
+     */
+    public PDCIDFontType2(COSDictionary fontDictionary, PDType0Font parent,
+        TrueTypeFont ttfFont) throws IOException
+    {
+        super(fontDictionary, parent);
+        ttf = ttfFont;
+        cid2gid = readCIDToGIDMap();
+        isEmbedded = true;
+        isDamaged = false;
+        hasIdentityCid2Gid = true;
     }
 
     @Override
@@ -325,6 +342,11 @@ public class PDCIDFontType2 extends PDCIDFont
                                                   CmapTable.ENCODING_UNICODE_2_0_FULL);
         if (cmap == null)
         {
+            cmap = cmapTable.getSubtable(CmapTable.PLATFORM_WINDOWS,
+                                         CmapTable.ENCODING_WIN_UCS4);
+        }
+        if (cmap == null)
+        {
             cmap = cmapTable.getSubtable(CmapTable.PLATFORM_UNICODE,
                                          CmapTable.ENCODING_UNICODE_2_0_BMP);
         }
@@ -389,4 +411,28 @@ public class PDCIDFontType2 extends PDCIDFont
     {
         return ttf;
     }
+
+    public void resetCID2GID(COSBase map)
+    {
+        if (dict.getItem(COSName.CID_TO_GID_MAP) != null)
+        {
+            dict.removeItem(COSName.CID_TO_GID_MAP);
+        }
+        dict.setItem(COSName.CID_TO_GID_MAP, map);
+    }
+
+    /**
+     * Reset a font widths.
+     *
+     * @param stream The font widths array.
+     */
+    public void resetFontWidths(COSArray wArray)
+    {
+        if (dict.getItem(COSName.W) != null)
+        {
+            dict.removeItem(COSName.W);
+        }
+        dict.setItem(COSName.W, wArray);
+    }
+
 }

@@ -145,6 +145,18 @@ public class OS2WindowsMetricsTable extends TTFTable
      * Family class constant.
      */
     public static final int FAMILY_CLASS_SYMBOLIC = 12;
+    /**
+     * fsType bit mask
+     */
+    private static final short FSTYPE_RESTRICT_EMBEDDING = 0x0001;
+    /**
+     * fsType bit mask
+     */
+    private static final short FSTYPE_NO_SUBSETTING = 0x0100;
+    /**
+     * fsType bit mask
+     */
+    private static final short FSTYPE_BITMAP_ONLY = 0x0200;
 
     /**
      * @return Returns the achVendId.
@@ -288,6 +300,14 @@ public class OS2WindowsMetricsTable extends TTFTable
     public void setFsType(short fsTypeValue)
     {
         this.fsType = fsTypeValue;
+    }
+
+    /**
+     * @return Return the boolean whetehr the font is permitted embedding
+     */
+    public boolean permitEmbedding()
+    {
+        return (fsType & (FSTYPE_RESTRICT_EMBEDDING|FSTYPE_NO_SUBSETTING|FSTYPE_BITMAP_ONLY)) == 0;
     }
 
     /**

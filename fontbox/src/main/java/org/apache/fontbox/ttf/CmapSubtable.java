@@ -315,7 +315,8 @@ public class CmapSubtable
      */
     protected void processSubtype14(TTFDataStream data, int numGlyphs) throws IOException
     {
-        throw new IOException("CMap subtype 14 not yet implemented");
+        // As some fonts implement this subtable, do not throw exception and just ignore
+        LOG.warn("CMap subtype 14 not yet implemented");
     }
 
     /**
@@ -553,6 +554,14 @@ public class CmapSubtable
             return 0;
         }
         return glyphIdToCharacterCode[gid];
+    }
+
+    /**
+     * @return Returns the glyphIdToCharacterCode.
+     */
+    public int[] getGlyphIdToCharacterCode()
+    {
+        return glyphIdToCharacterCode;
     }
 
     @Override

@@ -16,6 +16,7 @@
  */
 package org.apache.pdfbox.pdmodel.font;
 
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 
@@ -41,13 +42,27 @@ public class PDType0Font extends PDFont
 {
     private static final Log LOG = LogFactory.getLog(PDType0Font.class);
 
-    private final PDCIDFont descendantFont;
+    private PDCIDFont descendantFont;
     private CMap cMap, cMapUCS2;
     private boolean isCMapPredefined;
 
     /**
      * Constructor.
      * 
+     * @param fontDictionary The font dictionary according to the PDF specification.
+     */
+    public PDType0Font() throws IOException
+    {
+        super();
+        descendantFont = null;
+        cMap = null;
+        cMapUCS2 = null;
+        isCMapPredefined = true;
+    }
+
+    /**
+     * Constructor.
+     *
      * @param fontDictionary The font dictionary according to the PDF specification.
      */
     public PDType0Font(COSDictionary fontDictionary) throws IOException
@@ -166,6 +181,14 @@ public class PDType0Font extends PDFont
     public PDCIDFont getDescendantFont()
     {
         return descendantFont;
+    }
+
+    /**
+     * Set the descendant font.
+     */
+    public void setDescendantFont(PDCIDFont descendantFont)
+    {
+        this.descendantFont = descendantFont;
     }
 
     /**
@@ -341,4 +364,5 @@ public class PDType0Font extends PDFont
         }
         return getClass().getSimpleName() + "/" + descendant + " " + getBaseFont();
     }
+
 }

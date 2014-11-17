@@ -28,6 +28,7 @@ import java.util.GregorianCalendar;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
@@ -35,6 +36,9 @@ import java.util.SortedMap;
 import java.util.SortedSet;
 import java.util.TreeMap;
 import java.util.TreeSet;
+
+import org.apache.fontbox.encoding.Encoding;
+import org.apache.fontbox.encoding.MacRomanEncoding;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -50,7 +54,7 @@ public class TTFSubsetter
     private static final byte[] PAD_BUF = new byte[] {0,0,0};
     
     private final TrueTypeFont baseTTF;
-    private final String nameSuffix;
+    private final String namePrefix;
     private final CmapSubtable baseCmap;
     
     // A map of unicode char codes to glyph IDs of the original font.
@@ -58,34 +62,47 @@ public class TTFSubsetter
     // A sorted version of this set will comprise the generated glyph IDs
     // for the written truetype font.
     private final SortedSet<Integer> glyphIds;
+    // A flag whether basefont has UCS4 table
+    private boolean useUCS4;
     
     /**
-     * Constructs a subfont based on the given font using the given suffix.
+     * Constructs a subfont based on the given font using the given prefix.
      * 
      * @param baseFont the base font of the subfont
-     * @param suffix suffix used for the naming
+     * @param prefix prefix used for the naming
      * 
      */
-    public TTFSubsetter(TrueTypeFont baseFont, String suffix) throws IOException
+    public TTFSubsetter(TrueTypeFont baseFont, String prefix) throws IOException
     {
         baseTTF = baseFont;
-        nameSuffix = suffix;
+        namePrefix = prefix;
         characters = new TreeMap<Integer, Integer>();
         glyphIds = new TreeSet<Integer>();
         
-        CmapSubtable[] cmaps = this.baseTTF.getCmap().getCmaps();
-        CmapSubtable unicodeCmap = null;
+        CmapTable cmapTable = this.baseTTF.getCmap();
+        CmapSubtable subtable = null;
+        useUCS4 = true;
         
-        for (CmapSubtable cmap : cmaps)
-        {
-            // take first unicode map.
-            if (cmap.getPlatformId() == 0 || (cmap.getPlatformId() == 3 && cmap.getPlatformEncodingId() == 1)) 
+        subtable = cmapTable.getSubtable(CmapTable.PLATFORM_UNICODE,
+                                  CmapTable.ENCODING_UNICODE_2_0_FULL);
+        if (subtable == null)
             {
-                unicodeCmap = cmap;
-                break;
+            subtable = cmapTable.getSubtable(CmapTable.PLATFORM_WINDOWS,
+                                         CmapTable.ENCODING_WIN_UCS4);
             }
+        if (subtable == null)
+            {
+            useUCS4 = false;
+            subtable = cmapTable.getSubtable(CmapTable.PLATFORM_UNICODE,
+                                         CmapTable.ENCODING_UNICODE_2_0_BMP);
         }
-        baseCmap = unicodeCmap;
+        if (subtable == null)
+        {
+            subtable = cmapTable.getSubtable(CmapTable.PLATFORM_WINDOWS,
+                                         CmapTable.ENCODING_WIN_UNICODE);
+        }
+        baseCmap = subtable;
+
         // add notdef character.
         addCharCode(0);
     }
@@ -325,7 +342,7 @@ public class TTFSubsetter
     {
         return nr.getPlatformId() == NameRecord.PLATFORM_WINDOWS 
                 && nr.getPlatformEncodingId() == NameRecord.ENCODING_WINDOWS_UNICODE_BMP
-                && nr.getLanguageId() == 0 
+                //&& nr.getLanguageId() == 0 (ex, DevaVuSans uses 0x0409(=1033) United States)
                 && nr.getNameId() >= 0 && nr.getNameId() < 7;
     }
     
@@ -408,9 +425,9 @@ public class TTFSubsetter
                     }
                 }
                 String value = nr.getString();
-                if (nr.getNameId() == 6 && this.nameSuffix != null) 
+                if (nr.getNameId() == 6 && this.namePrefix != null)
                 {
-                    value += this.nameSuffix;
+                    value = this.namePrefix + value;
                 }
                 names[j] = value.getBytes(charset);
                 ++j;
@@ -803,8 +820,10 @@ public class TTFSubsetter
          * UInt16    version    Version number (Set to zero)
          * UInt16    numberSubtables    Number of encoding subtables
          */
+        int numberSubtables = useUCS4 ? 2 : 1;
         writeUint16(dos,0);
-        writeUint16(dos,1);
+        writeUint16(dos, numberSubtables);
+        
         /*
          * UInt16    platformID    Platform identifier
          * UInt16    platformSpecificID    Platform-specific encoding identifier
@@ -812,10 +831,10 @@ public class TTFSubsetter
          */
         writeUint16(dos,3); // unicode
         writeUint16(dos,1); // Default Semantics
-        writeUint32(dos, 4 * 2 + 4);
+        writeUint32(dos, numberSubtables * 4 * 2 + 4);
         // mapping of type 4.
         Iterator<Entry<Integer, Integer>> it = this.characters.entrySet().iterator();
-        it.next();
+        it.next(); // notdef
         Entry<Integer, Integer> lastChar = it.next();
         Entry<Integer, Integer> prevChar = lastChar;
         int lastGid = this.getNewGlyphId(lastChar.getValue());
@@ -824,17 +843,17 @@ public class TTFSubsetter
         int[] endCode = new int[this.characters.size()];
         int[] idDelta = new int[this.characters.size()];
         int nseg = 0;
-        while(it.hasNext()) 
+        while(it.hasNext())
         {
             Entry<Integer, Integer> curChar = it.next();
             int curGid = this.getNewGlyphId(curChar.getValue());
-            
+
             if (curChar.getKey() != prevChar.getKey()+1 ||
-                    curGid - lastGid != curChar.getKey() - lastChar.getKey()) 
+                    curGid - lastGid != curChar.getKey() - lastChar.getKey())
             {
                 // Don't emit ranges, which map to the undef glyph, the
                 // undef glyph is emitted a the very last segment.
-                if (lastGid != 0) 
+                if (lastGid != 0)
                 {
                     startCode[nseg] = lastChar.getKey();
                     endCode[nseg] = prevChar.getKey();
@@ -842,7 +861,7 @@ public class TTFSubsetter
                     ++nseg;
                 }
                 // shorten ranges which start with undef by one.
-                else if (!lastChar.getKey().equals(prevChar.getKey())) 
+                else if (!lastChar.getKey().equals(prevChar.getKey()))
                 {
                     startCode[nseg] = lastChar.getKey()+1;
                     endCode[nseg] = prevChar.getKey();
@@ -864,23 +883,33 @@ public class TTFSubsetter
         endCode[nseg] = 0xffff;
         idDelta[nseg] = 1;
         ++nseg;
-        
+
+        if (useUCS4)
+        {
+        // record of encodingID 10
+        writeUint16(dos,3);  // Windows
+        writeUint16(dos,10); // Unicode UCS-4
+        // header (4 byte) + encoding record (2 * 8 byte)
+        //  + length of encoding 1 record (fixed 2 byte * 8 + nseg * 2byte * 4)
+        writeUint32(dos, 4 + 2*8 + 8*2 + nseg * (4*2));
+        }
+
         /*
-         * UInt16    format    Format number is set to 4     
-         * UInt16    length    Length of subtable in bytes     
-         * UInt16    language    Language code for this encoding subtable, or zero if language-independent     
-         * UInt16    segCountX2    2 * segCount     
-         * UInt16    searchRange    2 * (2**FLOOR(log2(segCount)))     
-         * UInt16    entrySelector    log2(searchRange/2)     
-         * UInt16    rangeShift    (2 * segCount) - searchRange     
-         * UInt16    endCode[segCount]    Ending character code for each segment, last = 0xFFFF.    
-         * UInt16    reservedPad    This value should be zero    
-         * UInt16    startCode[segCount]    Starting character code for each segment    
-         * UInt16    idDelta[segCount]    Delta for all character codes in segment     
-         * UInt16    idRangeOffset[segCount]    Offset in bytes to glyph indexArray, or 0     
+         * UInt16    format    Format number is set to 4
+         * UInt16    length    Length of subtable in bytes
+         * UInt16    language    Language code for this encoding subtable, or zero if language-independent
+         * UInt16    segCountX2    2 * segCount
+         * UInt16    searchRange    2 * (2**FLOOR(log2(segCount)))
+         * UInt16    entrySelector    log2(searchRange/2)
+         * UInt16    rangeShift    (2 * segCount) - searchRange
+         * UInt16    endCode[segCount]    Ending character code for each segment, last = 0xFFFF.
+         * UInt16    reservedPad    This value should be zero
+         * UInt16    startCode[segCount]    Starting character code for each segment
+         * UInt16    idDelta[segCount]    Delta for all character codes in segment
+         * UInt16    idRangeOffset[segCount]    Offset in bytes to glyph indexArray, or 0
          * UInt16    glyphIndexArray[variable]    Glyph index array
          */
-        
+
         writeUint16(dos,4);
         writeUint16(dos, 8*2 + nseg * (4*2));
         writeUint16(dos,0);
@@ -889,24 +918,87 @@ public class TTFSubsetter
         writeUint16(dos,nsegHigh*2);
         writeUint16(dos,log2i(nsegHigh));
         writeUint16(dos,2*(nseg-nsegHigh));
-        
-        for (int i=0;i<nseg;++i) 
-        {    
+
+        for (int i=0;i<nseg;++i)
+        {
             writeUint16(dos,endCode[i]);
         }
         writeUint16(dos,0);
-        for (int i=0;i<nseg;++i) 
-        {    
+        for (int i=0;i<nseg;++i)
+        {
             writeUint16(dos,startCode[i]);
         }
-        for (int i=0;i<nseg;++i) 
-        {    
+        for (int i=0;i<nseg;++i)
+        {
             writeUint16(dos,idDelta[i]);
         }
-        for (int i=0;i<nseg;++i) 
-        {    
+        for (int i=0;i<nseg;++i)
+        {
             writeUint16(dos,0);
         }
+
+        if (useUCS4)
+        {
+        // mapping of type 12
+        it = this.characters.entrySet().iterator();
+        it.next();  // ignore .notdef code
+        lastChar = it.next();
+        prevChar = lastChar;
+        lastGid = this.getNewGlyphId(lastChar.getValue());
+
+        startCode      = new int[this.characters.size()];
+        endCode        = new int[this.characters.size()];
+        int[] startGid = new int[this.characters.size()];
+        int ngrp = 0;
+        while(it.hasNext())
+        {
+            Entry<Integer, Integer> curChar = it.next();
+            int curGid = this.getNewGlyphId(curChar.getValue());
+            if (curChar.getKey() != prevChar.getKey()+1
+             || curGid - lastGid != curChar.getKey() - lastChar.getKey())
+            {
+                if (lastGid != 0)
+                {
+                    startCode[ngrp] = lastChar.getKey();
+                    endCode[ngrp]   = prevChar.getKey();
+                    startGid[ngrp]  = lastGid;
+                    ++ngrp;
+                }
+                lastGid = curGid;
+                lastChar = curChar;
+            }
+            prevChar = curChar;
+        }
+        // trailing segment
+        startCode[ngrp] = lastChar.getKey();
+        endCode[ngrp] = prevChar.getKey();
+        startGid[ngrp] = lastGid;
+        ++ngrp;
+
+        /*
+         * UInt16    format    Format number is set to 12
+         * UInt16    reserved
+         * UInt32    length    Length of subtable in bytes (including the header)
+         * UInt32    language  0
+         * UInt32    nGropus
+         * UInt32    startCharCode
+         * UInt32    entryCharCode
+         * UInt32    startGlyphID
+         */
+
+        writeUint16(dos,12);
+        writeUint16(dos,0);
+        dos.writeInt(4*4 + ngrp*4*3);
+        dos.writeInt(0);
+        dos.writeInt(ngrp);
+        for (int i=0; i<ngrp; i++)
+        {
+            dos.writeInt(startCode[i]);
+            dos.writeInt(endCode[i]);
+            dos.writeInt(startGid[i]);
+        }
+        }
+
         LOG.debug("Finished table [cmap].");
         return bos.toByteArray();
     }
@@ -950,17 +1042,57 @@ public class TTFSubsetter
         writeUint32(dos,p.getMaxMemType42());
         writeUint32(dos,p.getMimMemType1());
         writeUint32(dos,p.getMaxMemType1());
-        writeUint16(dos,baseTTF.getHorizontalHeader().getNumberOfHMetrics());
+        writeUint16(dos,glyphIds.size());
             
         List<String> additionalNames = new ArrayList<String>();
         Map<String,Integer> additionalNamesIndices = new HashMap<String,Integer>();
         
-        if (glyphNames != null)
+        if (glyphNames == null)
+        {
+            Encoding enc = MacRomanEncoding.INSTANCE;
+            int[] gidToUC = this.baseCmap.getGlyphIdToCharacterCode();
+            for (Integer glyphId : this.glyphIds)
+            {
+                int uc = gidToUC[glyphId];
+                String name = null;
+                if (uc < 0x8000)
+                {
+                    try
+                    {
+                        name = enc.getNameFromCharacter((char)uc);
+                    }
+                    catch (IOException e)
+                    {
+                        // TODO
+                    }
+                }
+                if (name == null)
+                {
+                    name = String.format(Locale.ENGLISH,"uni%04X",uc);
+                }
+                Integer macId = WGL4Names.MAC_GLYPH_NAMES_INDICES.get(name);
+                if (macId == null)
+                {
+                    Integer idx = additionalNamesIndices.get(name);
+                    if (idx == null)
+                    {
+                        idx = additionalNames.size();
+                        additionalNames.add(name);
+                        additionalNamesIndices.put(name,idx);
+                    }
+                    writeUint16(dos,idx+258);
+                }
+                else
+                {
+                    writeUint16(dos,macId);
+                }
+            }
+        }
+        else
         {
             for (Integer glyphId : this.glyphIds)
             {
                 String name = glyphNames[glyphId];
-
                 Integer macId = WGL4Names.MAC_GLYPH_NAMES_INDICES.get(name);
                 if (macId == null)
                 {

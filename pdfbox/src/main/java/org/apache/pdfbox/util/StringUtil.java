@@ -17,6 +17,7 @@
 package org.apache.pdfbox.util;
 
 import java.io.UnsupportedEncodingException;
+import org.apache.pdfbox.persistence.util.COSHEXTable;
 
 public class StringUtil
 {
@@ -36,4 +37,24 @@ public class StringUtil
                 throw new RuntimeException("Unsupported Encoding", e);
             }
     }
+
+    public static String toHex4(int n)
+    {
+        String s = "0000" + Integer.toHexString(n);
+        return s.substring(s.length() - 4);
+    }
+
+    public static String toHex(int n)
+    {
+        if (n < 0x10000)
+        {
+            return "<" + toHex4(n) + ">";
+        }
+
+        n -= 0x10000;
+        int high = n / 0x400 + 0xd800;
+        int low = n % 0x400 + 0xdc00;
+        return "[<" + toHex4(high) + toHex4(low) + ">]";
+    }
+
 }

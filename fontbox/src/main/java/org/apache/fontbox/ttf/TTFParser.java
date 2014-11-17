@@ -30,6 +30,12 @@ public class TTFParser
     private boolean isEmbedded = false;
     private boolean parseOnDemandOnly = false;
 
+    /** Number of fonts in ttc file: ttc file only */
+    private int numFonts;
+
+    /** Offest of each font in ttc file: ttc file only */
+    private long[] offsetTable;
+
     /**
      * Constructor.
      */
@@ -58,6 +64,70 @@ public class TTFParser
     {
         this.isEmbedded = isEmbedded;
         parseOnDemandOnly = parseOnDemand;
+    }
+
+    /**
+     * Parse a TTC file and set the offset for the each font
+     *
+     * @param raf The TTC file.
+     * @throws IOException If there is an error parsing the true type font.
+     */
+    public void parseTTC(String ttcFile) throws IOException
+    {
+        RAFDataStream raf = new RAFDataStream(ttcFile, "r");
+        parseTTC(raf);
+    }
+
+    /**
+     * Parse a TTC file and set the offset for the each font
+     *
+     * @param raf The TTC file.
+     * @throws IOException If there is an error parsing the true type font.
+     */
+    public void parseTTC(File ttcFile) throws IOException
+    {
+        RAFDataStream raf = new RAFDataStream(ttcFile, "r");
+        parseTTC(raf);
+    }
+
+    /**
+     * Parse a TTC file and set the offset for the each font
+     *
+     * @param raf The TTC file.
+     * @throws IOException If there is an error parsing the true type font.
+     */
+    public void parseTTC(InputStream ttcData) throws IOException
+    {
+        parseTTC(new MemoryTTFDataStream(ttcData));
+    }
+
+    /**
+     * Parse a TTC file and set the offset for the each font
+     *
+     * @param raf The TTC file.
+     * @throws IOException If there is an error parsing the true type font.
+     */
+    public void parseTTC(TTFDataStream raf) throws IOException
+    {
+        String ttcTag = raf.readString(4);
+        if (!"ttcf".equals(ttcTag))
+        {
+            throw new IOException("This is not ttc file");
+        }
+        float version = raf.read32Fixed();
+        numFonts = (int)raf.readUnsignedInt();
+        offsetTable = new long[numFonts];
+        for (int i=0; i<numFonts; i++)
+        {
+            offsetTable[i] = raf.readUnsignedInt();
+        }
+
+        if (version > 1.0)
+        {
+            raf.readUnsignedInt();  // ulDsigTag
+            raf.readUnsignedInt();  // ulDsigLength
+            raf.readUnsignedInt();  // ulDsigLength
+        }
     }
 
     /**
@@ -125,6 +195,30 @@ public class TTFParser
         return font;
     }
 
+    /**
+     * Parse a file and get a true type font.
+     *
+     * @param raf The TTC file.
+     * @param index The Font index in the TTC file
+     * @return A true type font.
+     * @throws IOException If there is an error parsing the true type font.
+     */
+    public TrueTypeFont parse(TTFDataStream raf, int index) throws IOException
+    {
+        if (!isValidIndex(index))
+        {
+            throw new IOException("Invalid font index "+index);
+        }
+
+        raf.seek(offsetTable[index]);
+        return parse(raf);
+    }
+
+    private boolean isValidIndex(int index)
+    {
+        return (0 <= index && index <= numFonts);
+    }
+
     protected TrueTypeFont newFont(TTFDataStream raf)
     {
         return new TrueTypeFont(raf);
@@ -137,7 +231,7 @@ public class TTFParser
      * @param raf the data stream of the to be parsed ttf font
      * @throws IOException If there is an error parsing the true type font.
      */
-    private void parseTables(TrueTypeFont font, TTFDataStream raf) throws IOException
+    protected void parseTables(TrueTypeFont font, TTFDataStream raf) throws IOException
     {
         for (TTFTable table : font.getTables())
         {
@@ -198,7 +292,7 @@ public class TTFParser
         }
     }
 
-    private TTFTable readTableDirectory(TTFDataStream raf) throws IOException
+    protected TTFTable readTableDirectory(TTFDataStream raf) throws IOException
     {
         TTFTable table = null;
         String tag = raf.readString(4);
