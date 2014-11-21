@@ -107,6 +107,13 @@ public class PDCIDFontType0 extends PDCIDFont
             isEmbedded = true;
             isDamaged = fontIsDamaged;
         }
+        else if (PDType0CJKFont.isSupported(getBaseFont()))
+        {
+            cidFont = null;
+            t1Font = null;
+            isEmbedded = false;
+            isDamaged = false;
+        }
         else
         {
             // substitute
@@ -164,9 +171,13 @@ public class PDCIDFontType0 extends PDCIDFont
             {
                 numbers = cidFont.getFontMatrix();
             }
-            else
+            else if (t1Font != null)
             {
                 numbers = t1Font.getFontMatrix();
+            }
+            else
+            {
+                numbers = null;
             }
 
             if (numbers != null && numbers.size() == 6)

@@ -55,6 +55,7 @@ import org.apache.pdfbox.pdmodel.graphics.color.PDSeparation;
 import org.apache.pdfbox.pdmodel.graphics.image.PDImageXObject;
 import org.apache.pdfbox.pdmodel.graphics.PDXObject;
 import org.apache.pdfbox.pdmodel.graphics.image.PDInlineImage;
+import org.apache.pdfbox.persistence.util.COSHEXTable;
 import org.apache.pdfbox.util.StringUtil;
 
 /**
@@ -682,6 +683,30 @@ public class PDPageContentStream implements Closeable
         font.setUsedCodes(text);
     }
 
+    /**
+    * This will draw a Unicode string as is.
+    *
+    * @param text The text to draw.
+    * @throws IOException If an io exception occurs.
+    */
+    public void drawStringByUnicode(String text) throws IOException
+    {
+        if (!inTextMode)
+        {
+            throw new IOException("Error: must call beginText() before drawStringByUnicode");
+        }
+
+        byte[] codes = text.getBytes("UTF-16BE");
+        StringBuilder sb = new StringBuilder(codes.length * 2);
+        for (int i = 0; i < codes.length; i++)
+        {
+            sb.append(COSHEXTable.HEX_TABLE[(codes[i] + 256) % 256]);
+        }
+
+        appendRawCommands("<"+sb.toString()+">");
+        appendRawCommands(SPACE);
+        appendRawCommands(SHOW_TEXT);
+    }
 
     /**
      * Set the stroking color space.  This will add the colorspace to the PDResources
