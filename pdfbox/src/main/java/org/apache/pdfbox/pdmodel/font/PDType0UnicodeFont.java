@@ -145,15 +145,19 @@ public class PDType0UnicodeFont extends PDType0Font
         font.setItem(COSName.CIDSYSTEMINFO,
             PDCIDSystemInfo.ADOBE_IDENTITY_0.getCIDSystemInfo());
         font.setItem(COSName.FONT_DESC, fd.getCOSObject());
+
+        COSArray descFont = new COSArray();
+        descFont.add(font);
+
+        dict.setItem(COSName.SUBTYPE, COSName.TYPE0);
+        dict.setName(COSName.BASE_FONT, bfname);
+        dict.setItem(COSName.ENCODING, COSName.IDENTITY_H);
+        dict.setItem(COSName.DESCENDANT_FONTS, descFont);
+        this.readEncoding();
+        this.fetchCMapUCS2();
+
         PDCIDFont desFont = new PDCIDFontType2(font, this, ttf);
         setDescendantFont(desFont);
-
-        dict.setName(COSName.BASE_FONT, bfname);
-        dict.setItem(COSName.SUBTYPE, COSName.TYPE0);
-        dict.setItem(COSName.ENCODING, COSName.IDENTITY_H);
-        COSArray descendantFontArray = new COSArray();
-        descendantFontArray.add(desFont);
-        dict.setItem(COSName.DESCENDANT_FONTS, descendantFontArray);
     }
 
     /**

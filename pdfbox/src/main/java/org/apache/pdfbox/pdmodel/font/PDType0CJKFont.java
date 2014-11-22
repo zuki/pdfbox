@@ -137,9 +137,12 @@ public class PDType0CJKFont extends PDType0Font
         dict.setName(COSName.BASE_FONT, name);
         dict.setName(COSName.ENCODING, fontProperties.getProperty("Encoding"));
         dict.setItem(COSName.DESCENDANT_FONTS, descFont);
+        this.readEncoding();
+        this.fetchCMapUCS2();
 
         PDCIDFont desFont = new PDCIDFontType0(font, this);
         setDescendantFont(desFont);
+
     }
 
     /**

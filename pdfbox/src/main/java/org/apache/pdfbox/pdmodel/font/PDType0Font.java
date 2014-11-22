@@ -57,9 +57,6 @@ public class PDType0Font extends PDFont
     {
         super();
         descendantFont = null;
-        cMap = null;
-        cMapUCS2 = null;
-        isCMapPredefined = true;
     }
 
     /**
@@ -92,7 +89,7 @@ public class PDType0Font extends PDFont
     /**
      * Reads the font's Encoding entry, which should be a CMap name/stream.
      */
-    private void readEncoding() throws IOException
+    protected void readEncoding() throws IOException
     {
         COSBase encoding = dict.getDictionaryObject(COSName.ENCODING);
         if (encoding != null)
@@ -130,7 +127,7 @@ public class PDType0Font extends PDFont
     /**
      * Fetches the corresponding UCS2 CMap if the font's CMap is predefined.
      */
-    private void fetchCMapUCS2() throws IOException
+    protected void fetchCMapUCS2() throws IOException
     {
         // if the font is composite and uses a predefined cmap (excluding Identity-H/V) then
         // or if its decendant font uses Adobe-GB1/CNS1/Japan1/Korea1
