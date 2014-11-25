@@ -250,7 +250,7 @@ public class CMap
      */
     void addCIDMapping(int code, int cid)
     {
-        codeToCid.put(code, cid);
+        codeToCid.put(cid, code);
     }
 
     /**
