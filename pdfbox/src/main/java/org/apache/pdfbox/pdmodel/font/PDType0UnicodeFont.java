@@ -153,8 +153,8 @@ public class PDType0UnicodeFont extends PDType0Font
         dict.setName(COSName.BASE_FONT, bfname);
         dict.setItem(COSName.ENCODING, COSName.IDENTITY_H);
         dict.setItem(COSName.DESCENDANT_FONTS, descFont);
-        this.readEncoding();
-        this.fetchCMapUCS2();
+        readEncoding();
+        fetchCMapUCS2();
 
         PDCIDFont desFont = new PDCIDFontType2(font, this, ttf);
         setDescendantFont(desFont);
@@ -222,8 +222,10 @@ public class PDType0UnicodeFont extends PDType0Font
             StringBuilder sb = new StringBuilder();
             for (Integer gid : gidset)
             {
+                // subwidths[0] is the width of charCode = 0
+                int idx = (gid > subwidths.length - 2) ? (subwidths.length - 2) : gid;
                 sb.append(" ").append(gid2cid.get(gid))
-                  .append(" ").append(Math.round(subwidths[gid] * scaling));
+                  .append(" ").append(Math.round(subwidths[idx] * scaling));
             }
             COSArray wArray = getFontWidthsArray(sb.toString().substring(1));
             descendantFont.resetFontWidths(wArray);

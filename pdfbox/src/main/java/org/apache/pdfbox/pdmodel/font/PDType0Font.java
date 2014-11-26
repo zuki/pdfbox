@@ -276,12 +276,19 @@ public class PDType0Font extends PDFont
             return unicode;
         }
 
+        String encoding = dict.getCOSName(COSName.ENCODING).getName();
+
         if (!isSymbolic())
         {
             // this nonsymbolic behaviour isn't well documented, test with PDFBOX-1422,
             // also see PDCIDFontType2#cidToGID()
             String name = StandardEncoding.INSTANCE.getName(code);
             return GlyphList.getAdobeGlyphList().toUnicode(name);
+        }
+        else if (encoding.indexOf("-UTF16-") > 0)
+        {
+            int cid = codeToCID(code);
+            return new String(Character.toChars(cid));
         }
         else if (isCMapPredefined && cMapUCS2 != null)
         {

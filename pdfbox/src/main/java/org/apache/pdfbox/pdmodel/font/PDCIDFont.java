@@ -215,7 +215,7 @@ public abstract class PDCIDFont implements COSObjectable, PDFontLike
      *
      * @return The default width for the glyphs in this font.
      */
-    private float getDefaultWidth()
+    protected float getDefaultWidth()
     {
         if (defaultWidth == 0)
         {

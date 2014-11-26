@@ -34,6 +34,7 @@ import org.apache.fontbox.util.BoundingBox;
 import org.apache.pdfbox.cos.COSDictionary;
 import org.apache.pdfbox.cos.COSName;
 import org.apache.pdfbox.io.IOUtils;
+import org.apache.pdfbox.pdmodel.common.PDRectangle;
 import org.apache.pdfbox.pdmodel.common.PDStream;
 import org.apache.pdfbox.util.Matrix;
 
@@ -201,9 +202,15 @@ public class PDCIDFontType0 extends PDCIDFont
         {
             return cidFont.getFontBBox();
         }
-        else
+        else if (t1Font != null)
         {
             return t1Font.getFontBBox();
+        }
+        else
+        {
+            PDRectangle bbox = getFontDescriptor().getFontBoundingBox();
+            return new BoundingBox(bbox.getLowerLeftX(), bbox.getLowerLeftY(),
+                bbox.getUpperRightX(), bbox.getUpperRightY());
         }
     }
 
@@ -234,9 +241,13 @@ public class PDCIDFontType0 extends PDCIDFont
         {
             return cidFont.getType2CharString(cid);
         }
-        else
+        else if (t1Font != null)
         {
             return t1Font.getType2CharString(cid);
+        }
+        else
+        {
+            return null;
         }
     }
 
@@ -272,6 +283,11 @@ public class PDCIDFontType0 extends PDCIDFont
     public float getWidthFromFont(int code) throws IOException
     {
         int cid = codeToCID(code);
+        if (getType2CharString(cid) == null)
+        {
+            return getDefaultWidth();
+        }
+
         int width = getType2CharString(cid).getWidth();
 
         Point2D p = new Point2D.Float(width, 0);

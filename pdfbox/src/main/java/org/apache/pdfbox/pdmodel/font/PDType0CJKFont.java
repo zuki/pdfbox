@@ -33,10 +33,10 @@ import org.apache.pdfbox.cos.COSDictionary;
 import org.apache.pdfbox.cos.COSFloat;
 import org.apache.pdfbox.cos.COSInteger;
 import org.apache.pdfbox.cos.COSName;
-import org.apache.pdfbox.pdmodel.common.PDRectangle;
 import org.apache.pdfbox.pdmodel.font.PDCIDFontType0;
 import org.apache.pdfbox.pdmodel.font.PDCIDSystemInfo;
 import org.apache.pdfbox.pdmodel.font.PDFont;
+import org.apache.pdfbox.pdmodel.font.PDFontDescriptor;
 import org.apache.pdfbox.pdmodel.font.PDType0Font;
 import org.apache.pdfbox.pdmodel.font.PDFontDescriptor;
 
@@ -53,6 +53,10 @@ public class PDType0CJKFont extends PDType0Font
      * Log instance.
      */
     private static final Log LOG = LogFactory.getLog(PDType0CJKFont.class);
+
+    private Map<Integer, Float> widthCache = null;
+
+    private long defaultWidth = 0;
 
     private static final Map<String, String> SUPPORTED_FONTS = new HashMap<String, String>();
 
@@ -137,8 +141,8 @@ public class PDType0CJKFont extends PDType0Font
         dict.setName(COSName.BASE_FONT, name);
         dict.setName(COSName.ENCODING, fontProperties.getProperty("Encoding"));
         dict.setItem(COSName.DESCENDANT_FONTS, descFont);
-        this.readEncoding();
-        this.fetchCMapUCS2();
+        readEncoding();
+        fetchCMapUCS2();
 
         PDCIDFont desFont = new PDCIDFontType0(font, this);
         setDescendantFont(desFont);
@@ -206,6 +210,12 @@ public class PDType0CJKFont extends PDType0Font
         {
             LOG.warn(e.getMessage());
         }
+    }
+
+    @Override
+    public float getHeight(int code) throws IOException
+    {
+        return getDescendantFont().getFontDescriptor().getCapHeight();
     }
 
 }

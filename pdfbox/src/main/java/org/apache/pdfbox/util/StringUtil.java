@@ -54,7 +54,7 @@ public class StringUtil
         n -= 0x10000;
         int high = n / 0x400 + 0xd800;
         int low = n % 0x400 + 0xdc00;
-        return "[<" + toHex4(high) + toHex4(low) + ">]";
+        return "<" + toHex4(high) + toHex4(low) + ">";
     }
 
 }
