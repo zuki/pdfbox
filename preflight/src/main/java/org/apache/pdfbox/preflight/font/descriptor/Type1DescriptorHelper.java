@@ -23,7 +23,6 @@ package org.apache.pdfbox.preflight.font.descriptor;
 
 import static org.apache.pdfbox.preflight.PreflightConstants.ERROR_FONTS_CHARSET_MISSING_FOR_SUBSET;
 import static org.apache.pdfbox.preflight.PreflightConstants.ERROR_FONTS_FONT_FILEX_INVALID;
-import static org.apache.pdfbox.preflight.PreflightConstants.ERROR_FONTS_TRUETYPE_DAMAGED;
 import static org.apache.pdfbox.preflight.PreflightConstants.ERROR_FONTS_TYPE1_DAMAGED;
 import static org.apache.pdfbox.preflight.PreflightConstants.FONT_DICTIONARY_KEY_LENGTH2;
 import static org.apache.pdfbox.preflight.PreflightConstants.FONT_DICTIONARY_KEY_LENGTH3;
@@ -33,11 +32,8 @@ import org.apache.pdfbox.cos.COSDictionary;
 import org.apache.pdfbox.cos.COSName;
 import org.apache.pdfbox.cos.COSStream;
 import org.apache.pdfbox.pdmodel.common.PDStream;
-import org.apache.pdfbox.pdmodel.font.PDFont;
 import org.apache.pdfbox.pdmodel.font.PDFontDescriptor;
-import org.apache.pdfbox.pdmodel.font.PDSimpleFont;
 import org.apache.pdfbox.pdmodel.font.PDType1Equivalent;
-import org.apache.pdfbox.pdmodel.font.PDType1Font;
 import org.apache.pdfbox.preflight.PreflightContext;
 import org.apache.pdfbox.preflight.ValidationResult.ValidationError;
 import org.apache.pdfbox.preflight.font.container.Type1Container;
@@ -54,7 +50,7 @@ public class Type1DescriptorHelper extends FontDescriptorHelper<Type1Container>
     {
         boolean result = super.checkMandatoryFields(fDescriptor);
         /*
-         * if the this font is a Subset, the CharSet entry must be present in the FontDescriptor
+         * if this font is a subset, the CharSet entry must be present in the FontDescriptor
          */
         if (isSubSet(fontDescriptor.getFontName()))
         {
@@ -62,7 +58,8 @@ public class Type1DescriptorHelper extends FontDescriptorHelper<Type1Container>
             if (charsetStr == null || "".equals(charsetStr))
             {
                 this.fContainer.push(new ValidationError(ERROR_FONTS_CHARSET_MISSING_FOR_SUBSET,
-                        "The Charset entry is missing for the Type1 Subset"));
+                        fontDescriptor.getFontName()
+                        + ": The Charset entry is missing for the Type1 Subset"));
                 result = false;
             }
         }
@@ -80,8 +77,8 @@ public class Type1DescriptorHelper extends FontDescriptorHelper<Type1Container>
             COSStream stream = ff1.getStream();
             if (stream == null)
             {
-                this.fContainer.push(new ValidationError(ERROR_FONTS_FONT_FILEX_INVALID, "The FontFile is missing for "
-                        + fontDescriptor.getFontName()));
+                this.fContainer.push(new ValidationError(ERROR_FONTS_FONT_FILEX_INVALID, 
+                        fontDescriptor.getFontName() + ": The FontFile is missing"));
                 this.fContainer.notEmbedded();
                 return null;
             }
@@ -91,8 +88,8 @@ public class Type1DescriptorHelper extends FontDescriptorHelper<Type1Container>
             boolean hasLength3 = stream.getInt(COSName.getPDFName(FONT_DICTIONARY_KEY_LENGTH3)) >= 0;
             if (!(hasLength1 && hasLength2 && hasLength3))
             {
-                this.fContainer.push(new ValidationError(ERROR_FONTS_FONT_FILEX_INVALID, "The FontFile is invalid for "
-                        + fontDescriptor.getFontName()));
+                this.fContainer.push(new ValidationError(ERROR_FONTS_FONT_FILEX_INVALID, 
+                        fontDescriptor.getFontName() + ": The FontFile is invalid"));
                 return null;
             }
 
@@ -110,7 +107,7 @@ public class Type1DescriptorHelper extends FontDescriptorHelper<Type1Container>
         if (font.isDamaged())
         {
             this.fContainer.push(new ValidationError(ERROR_FONTS_TYPE1_DAMAGED,
-                    "The FontFile can't be read for " + this.font.getName()));
+                    this.font.getName() + ": The FontFile can't be read"));
         }
     }
 }

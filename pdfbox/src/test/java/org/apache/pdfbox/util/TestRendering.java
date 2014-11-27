@@ -75,7 +75,7 @@ public class TestRendering
         File file = new File(INPUT_DIR, fileName);
         PDDocument document = PDDocument.load(file);
         PDFRenderer renderer = new PDFRenderer(document);
-        BufferedImage image = renderer.renderImage(0);
+        renderer.renderImage(0);
 
         // We don't actually do anything with the image for the same reason that
         // TestPDFToImage is disabled - different JVMs produce different results

@@ -79,7 +79,7 @@ public class TestPDDocumentCatalog extends TestCase {
     public void testGetNumberOfPages() throws Exception {
         PDDocument doc = null;
         try {
-            doc = PDDocument.load(TestPDDocumentCatalog.class.getResource("test.unc.pdf"));
+            doc = PDDocument.load(TestPDDocumentCatalog.class.getResourceAsStream("test.unc.pdf"));
             assertEquals(4, doc.getNumberOfPages());
         } finally {
             if(doc != null)

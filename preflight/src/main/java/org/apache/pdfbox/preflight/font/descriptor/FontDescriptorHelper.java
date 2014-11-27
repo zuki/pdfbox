@@ -85,7 +85,7 @@ public abstract class FontDescriptorHelper<T extends FontContainer>
         boolean isStandard14 = false;
         if (this.font instanceof PDFont)
         {
-            isStandard14 = ((PDFont)font).isStandard14();
+            isStandard14 = ((PDFont) font).isStandard14();
         }
 
         // Only a PDFontDescriptorDictionary provides a way to embedded the font program.
@@ -93,37 +93,38 @@ public abstract class FontDescriptorHelper<T extends FontContainer>
         {
             fontDescriptor = fd;
 
-            if (isStandard14 || checkMandatoryFields(fontDescriptor.getCOSObject()))
+            if (!isStandard14)
             {
-                if (hasOnlyOneFontFile(fontDescriptor))
+                checkMandatoryFields(fontDescriptor.getCOSObject());
+            }
+            if (hasOnlyOneFontFile(fontDescriptor))
+            {
+                PDStream fontFile = extractFontFile(fontDescriptor);
+                if (fontFile != null)
                 {
-                    PDStream fontFile = extractFontFile(fontDescriptor);
-                    if (fontFile != null)
-                    {
-                        processFontFile(fontDescriptor, fontFile);
-                        checkFontFileMetaData(fontDescriptor, fontFile);
-                    }
+                    processFontFile(fontDescriptor, fontFile);
+                    checkFontFileMetaData(fontDescriptor, fontFile);
+                }
+            }
+            else
+            {
+                if (fontFileNotEmbedded(fontDescriptor))
+                {
+                    this.fContainer.push(new ValidationError(ERROR_FONTS_FONT_FILEX_INVALID,
+                        fontDescriptor.getFontName() + ": FontFile entry is missing from FontDescriptor"));
+                    this.fContainer.notEmbedded();
                 }
                 else
                 {
-                    if (fontFileNotEmbedded(fontDescriptor))
-                    {
-                        this.fContainer.push(new ValidationError(ERROR_FONTS_FONT_FILEX_INVALID,
-                                "FontFile entry is missing from FontDescriptor for " + fontDescriptor.getFontName()));
-                        this.fContainer.notEmbedded();
-                    }
-                    else
-                    {
-                        this.fContainer.push(new ValidationError(ERROR_FONTS_FONT_FILEX_INVALID,
-                                "They are more than one FontFile for " + fontDescriptor.getFontName()));
-                    }
+                    this.fContainer.push(new ValidationError(ERROR_FONTS_FONT_FILEX_INVALID,
+                        fontDescriptor.getFontName() + ": They is more than one FontFile"));
                 }
             }
         }
         else
         {
             this.fContainer.push(new ValidationError(ERROR_FONTS_DESCRIPTOR_INVALID,
-                    "FontDescriptor is null or is a AFM Descriptor"));
+                    this.font.getName() + ": FontDescriptor is null or is an AFM Descriptor"));
             this.fContainer.notEmbedded();
         }
     }
@@ -233,10 +234,9 @@ public abstract class FontDescriptorHelper<T extends FontContainer>
      */
     protected void checkFontFileMetaData(PDFontDescriptor fontDescriptor, PDStream fontFile)
     {
-        PDMetadata metadata = null;
         try
         {
-            metadata = fontFile.getMetadata();
+            PDMetadata metadata = fontFile.getMetadata();
 
             if (metadata != null)
             {
@@ -244,7 +244,7 @@ public abstract class FontDescriptorHelper<T extends FontContainer>
                 if (metadata.getFilters() != null && !metadata.getFilters().isEmpty())
                 {
                     this.fContainer.push(new ValidationError(ERROR_SYNTAX_STREAM_INVALID_FILTER,
-                            "Filter specified in font file metadata dictionnary"));
+                            this.font.getName() + ": Filter specified in font file metadata dictionnary"));
                     return;
                 }
 
@@ -267,16 +267,16 @@ public abstract class FontDescriptorHelper<T extends FontContainer>
                 {
                     if (e.getErrorType() == ErrorType.NoValueType)
                     {
-                        this.fContainer.push(new ValidationError(ERROR_METADATA_UNKNOWN_VALUETYPE, e.getMessage()));
+                        this.fContainer.push(new ValidationError(ERROR_METADATA_UNKNOWN_VALUETYPE, e.getMessage(), e));
                     }
                     else if (e.getErrorType() == ErrorType.XpacketBadEnd)
                     {
                         this.fContainer.push(new ValidationError(ERROR_METADATA_FORMAT_XPACKET,
-                                "Unable to parse font metadata due to : " + e.getMessage()));
+                                this.font.getName() + ": Unable to parse font metadata due to : " + e.getMessage(), e));
                     }
                     else
                     {
-                        this.fContainer.push(new ValidationError(ERROR_METADATA_FORMAT, e.getMessage()));
+                        this.fContainer.push(new ValidationError(ERROR_METADATA_FORMAT, e.getMessage(), e));
                     }
                 }
             }
@@ -284,7 +284,7 @@ public abstract class FontDescriptorHelper<T extends FontContainer>
         catch (IllegalStateException e)
         {
             this.fContainer.push(new ValidationError(ERROR_METADATA_FORMAT_UNKOWN,
-                    "The Metadata entry doesn't reference a stream object"));
+                    this.font.getName() + ": The Metadata entry doesn't reference a stream object", e));
         }
     }
 
@@ -303,7 +303,7 @@ public abstract class FontDescriptorHelper<T extends FontContainer>
         catch (IOException e)
         {
             this.fContainer.push(new ValidationError(ERROR_METADATA_FORMAT_STREAM,
-                    "Unable to read font metadata due to : " + e.getMessage()));
+                    this.font.getName() + ": Unable to read font metadata due to : " + e.getMessage(), e));
         }
         finally
         {

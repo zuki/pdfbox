@@ -28,6 +28,7 @@ import org.apache.pdfbox.pdmodel.common.COSArrayList;
 import org.apache.pdfbox.pdmodel.common.COSObjectable;
 import org.apache.pdfbox.pdmodel.common.PDTextStream;
 import org.apache.pdfbox.pdmodel.fdf.FDFField;
+import org.apache.pdfbox.pdmodel.interactive.action.PDFormFieldAdditionalActions;
 import org.apache.pdfbox.pdmodel.interactive.annotation.PDAnnotationWidget;
 
 /**
@@ -108,14 +109,6 @@ public abstract class PDFieldTreeNode implements COSObjectable
      * 
      */
     public abstract Object getValue();
-
-    /**
-     * setValue sets the entry "V" to the given value.
-     * 
-     * @param value the value
-     * 
-     */
-    public abstract void setValue(Object value);
 
     /**
      * getDefaultValue gets the value of the "DV" entry.
@@ -208,6 +201,23 @@ public abstract class PDFieldTreeNode implements COSObjectable
     }
 
     /**
+     * Get the additional actions for this field. This will return null if there
+     * are no additional actions for this field.
+     *
+     * @return The actions of the field.
+     */
+    public PDFormFieldAdditionalActions getActions()
+    {
+        COSDictionary aa = (COSDictionary) getDictionary().getDictionaryObject(COSName.AA);
+        PDFormFieldAdditionalActions retval = null;
+        if (aa != null)
+        {
+            retval = new PDFormFieldAdditionalActions(aa);
+        }
+        return retval;
+    }
+
+   /**
      * This will import a fdf field from a fdf document.
      * 
      * @param fdfField The fdf field to import.
@@ -223,11 +233,11 @@ public abstract class PDFieldTreeNode implements COSObjectable
         {
             if (fieldValue instanceof String)
             {
-                setValue((String) fieldValue);
+                fdfField.setValue((String) fieldValue);
             }
             else if (fieldValue instanceof PDTextStream)
             {
-                setValue(((PDTextStream) fieldValue).getAsString());
+                fdfField.setValue(((PDTextStream) fieldValue).getAsString());
             }
             else
             {
@@ -274,7 +284,7 @@ public abstract class PDFieldTreeNode implements COSObjectable
         {
             int annotFlags = widget.getAnnotationFlags();
             Integer f = fdfField.getWidgetFieldFlags();
-            if (f != null && widget != null)
+            if (f != null)
             {
                 widget.setAnnotationFlags(f);
             }
@@ -352,10 +362,6 @@ public abstract class PDFieldTreeNode implements COSObjectable
             {
                 retval = ((PDFieldTreeNode) firstKid).getWidget();
             }
-        }
-        else
-        {
-            retval = null;
         }
         return retval;
     }
@@ -526,6 +532,7 @@ public abstract class PDFieldTreeNode implements COSObjectable
      * 
      * @return The cos object that matches this Java object.
      */
+    @Override
     public COSBase getCOSObject()
     {
         return dictionary;

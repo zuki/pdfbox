@@ -35,7 +35,6 @@ import org.apache.pdfbox.cos.COSName;
 import org.apache.pdfbox.cos.COSNumber;
 import org.apache.pdfbox.cos.COSStream;
 import org.apache.pdfbox.cos.COSString;
-import org.apache.pdfbox.io.RandomAccess;
 import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.pdmodel.PDDocumentCatalog;
 import org.apache.pdfbox.pdmodel.PDDocumentInformation;
@@ -58,8 +57,7 @@ import org.apache.pdfbox.pdmodel.interactive.form.PDFieldTreeNode;
  * This class will take a list of pdf documents and merge them, saving the
  * result in a new document.
  *
- * @author <a href="mailto:ben@benlitchfield.com">Ben Litchfield</a>
- *
+ * @author Ben Litchfield
  */
 public class PDFMergerUtility
 {
@@ -171,24 +169,6 @@ public class PDFMergerUtility
      */
     public void mergeDocuments() throws IOException
     {
-        mergeDocuments(false, null);
-    }
-
-    /**
-     * Merge the list of source documents with the non sequential parser, saving
-     * the result in the destination file.
-     *
-     * @param scratchFile location to store temp PDFBox data for this output
-     * document, can be null if temp data is to be stored in memory
-     * @throws IOException If there is an error saving the document.
-     */
-    public void mergeDocumentsNonSeq(RandomAccess scratchFile) throws IOException
-    {
-        mergeDocuments(true, scratchFile);
-    }
-
-    private void mergeDocuments(boolean isNonSeq, RandomAccess scratchFile) throws IOException
-    {
         PDDocument destination = null;
         InputStream sourceFile;
         PDDocument source;
@@ -204,15 +184,7 @@ public class PDFMergerUtility
                 while (sit.hasNext())
                 {
                     sourceFile = sit.next();
-                    if (isNonSeq)
-                    {
-                        source = PDDocument.loadNonSeq(sourceFile, null);
-                    }
-                    else
-                    {
-                        source = PDDocument.load(sourceFile);
-                    }
-
+                    source = PDDocument.load(sourceFile);
                     tobeclosed.add(source);
                     appendDocument(destination, source);
                 }
