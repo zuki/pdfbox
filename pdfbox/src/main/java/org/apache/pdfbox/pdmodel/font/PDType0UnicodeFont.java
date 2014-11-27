@@ -178,7 +178,7 @@ public class PDType0UnicodeFont extends PDType0Font
         subFont.writeToStream(bos);
         ByteArrayInputStream bis = new ByteArrayInputStream(bos.toByteArray());
         PDStream fontStream = new PDStream(doc, bis);
-        //fontStream.addCompression();
+        fontStream.addCompression();
         fontStream.getStream().setInt(COSName.LENGTH1, fontStream.getByteArray().length);
 
         PDCIDFontType2 descendantFont = (PDCIDFontType2) getDescendantFont();
@@ -474,7 +474,7 @@ public class PDType0UnicodeFont extends PDType0Font
 
         ByteArrayInputStream bis = new ByteArrayInputStream(sb.toString().getBytes(Charset.forName("US-ASCII")));
         PDStream toUnicode = new PDStream(doc, bis);
-        //toUnicode.addCompression();
+        toUnicode.addCompression();
         return toUnicode;
     }
 
@@ -506,7 +506,7 @@ public class PDType0UnicodeFont extends PDType0Font
         }
         ByteArrayInputStream bis = new ByteArrayInputStream(bs);
         PDStream cidToGID = new PDStream(doc, bis);
-        //cidToGID.addCompression();
+        cidToGID.addCompression();
         return cidToGID.getCOSObject();
     }
 
