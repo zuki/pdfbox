@@ -28,7 +28,7 @@ import org.apache.pdfbox.persistence.util.COSHEXTable;
 
 /**
  * This represents a string object in a PDF document.
- *
+ * 
  * @author <a href="mailto:ben@benlitchfield.com">Ben Litchfield</a>
  * @version $Revision: 1.30 $
  */
@@ -91,22 +91,16 @@ public class COSString extends COSBase
     private boolean forceHexForm = false;
 
     /**
-     * Does the string contain only 7 bit ascii characters?
-     */
-    private boolean isKnownToBeAscii;
-
-    /**
      * Constructor.
      */
     public COSString()
     {
         out = new ByteArrayOutputStream();
-        isKnownToBeAscii = true;
     }
 
     /**
      * Explicit constructor for ease of manual PDF construction.
-     *
+     * 
      * @param value
      *            The string value of the object.
      */
@@ -114,16 +108,11 @@ public class COSString extends COSBase
     {
         try
         {
-            isKnownToBeAscii = true;
             boolean unicode16 = false;
             char[] chars = value.toCharArray();
             int length = chars.length;
             for (int i = 0; i < length; i++)
             {
-                if( chars[i] > 127 )
-                {
-                	isKnownToBeAscii = false;
-                }
                 if (chars[i] > 255)
                 {
                     unicode16 = true;
@@ -143,7 +132,6 @@ public class COSString extends COSBase
                 byte[] data = value.getBytes("ISO-8859-1");
                 out = new ByteArrayOutputStream(data.length);
                 out.write(data);
-                isKnownToBeAscii = false; // We have no idea what encoding you gave us!
             }
         }
         catch (IOException ignore)
@@ -155,7 +143,7 @@ public class COSString extends COSBase
 
     /**
      * Explicit constructor for ease of manual PDF construction.
-     *
+     * 
      * @param value
      *            The string value of the object.
      */
@@ -175,7 +163,7 @@ public class COSString extends COSBase
 
     /**
      * Forces the string to be written in literal form instead of hexadecimal form.
-     *
+     * 
      * @param v
      *            if v is true the string will be written in literal form, otherwise it will be written in hexa if
      *            necessary.
@@ -188,7 +176,7 @@ public class COSString extends COSBase
 
     /**
      * Forces the string to be written in hexadecimal form instead of literal form.
-     *
+     * 
      * @param v
      *            if v is true the string will be written in hexadecimal form otherwise it will be written in literal if
      *            necessary.
@@ -201,7 +189,7 @@ public class COSString extends COSBase
 
     /**
      * This will create a COS string from a string of hex characters.
-     *
+     * 
      * @param hex
      *            A hex string.
      * @return A cos string with the hex characters converted to their actual bytes.
@@ -215,7 +203,7 @@ public class COSString extends COSBase
 
     /**
      * Creates a COS string from a string of hex characters, optionally ignoring malformed input.
-     *
+     * 
      * @param hex
      *            A hex string.
      * @param force
@@ -257,7 +245,7 @@ public class COSString extends COSBase
 
     /**
      * This will take this string and create a hex representation of the bytes that make the string.
-     *
+     * 
      * @return A hex string representing the bytes in this string.
      */
     public String getHexString()
@@ -275,7 +263,7 @@ public class COSString extends COSBase
 
     /**
      * This will get the string that this object wraps.
-     *
+     * 
      * @return The wrapped string.
      */
     public String getString()
@@ -309,10 +297,10 @@ public class COSString extends COSBase
 
     /**
      * This will append a byte[] to the string.
-     *
+     * 
      * @param data
      *            The byte[] to add to this string.
-     *
+     * 
      * @throws IOException
      *             If an IO error occurs while writing the byte.
      */
@@ -320,15 +308,14 @@ public class COSString extends COSBase
     {
         out.write(data);
         this.str = null;
-        isKnownToBeAscii = false; // We have no idea what you just gave us
     }
 
     /**
      * This will append a byte to the string.
-     *
+     * 
      * @param in
      *            The byte to add to this string.
-     *
+     * 
      * @throws IOException
      *             If an IO error occurs while writing the byte.
      */
@@ -336,7 +323,6 @@ public class COSString extends COSBase
     {
         out.write(in);
         this.str = null;
-        if(in > 127) { isKnownToBeAscii = false; }
     }
 
     /**
@@ -350,7 +336,7 @@ public class COSString extends COSBase
 
     /**
      * This will get the bytes of the string.
-     *
+     * 
      * @return A byte array that represents the string.
      */
     public byte[] getBytes()
@@ -369,7 +355,7 @@ public class COSString extends COSBase
 
     /**
      * This will output this string as a PDF object.
-     *
+     * 
      * @param output
      *            The stream to write to.
      * @throws IOException
@@ -377,16 +363,22 @@ public class COSString extends COSBase
      */
     public void writePDF(OutputStream output) throws IOException
     {
+        boolean outsideASCII = false;
         // Lets first check if we need to escape this string.
-        byte[] bytesFromString = getBytes();
-        int length = bytesFromString.length;
-
-        if( isKnownToBeAscii || !forceHexForm )
+        byte[] bytes = getBytes();
+        int length = bytes.length;
+        for (int i = 0; i < length && !outsideASCII; i++)
+        {
+            // if the byte is negative then it is an eight bit byte and is
+            // outside the ASCII range.
+            outsideASCII = bytes[i] < 0;
+        }
+        if (!outsideASCII && !forceHexForm)
         {
             output.write(STRING_OPEN);
             for (int i = 0; i < length; i++)
             {
-                int b = (bytesFromString[i] + 256) % 256;
+                int b = (bytes[i] + 256) % 256;
                 switch (b)
                 {
                 case '(':
@@ -435,7 +427,7 @@ public class COSString extends COSBase
             output.write(HEX_STRING_OPEN);
             for (int i = 0; i < length; i++)
             {
-                output.write(COSHEXTable.TABLE[(bytesFromString[i] + 256) % 256]);
+                output.write(COSHEXTable.TABLE[(bytes[i] + 256) % 256]);
             }
             output.write(HEX_STRING_CLOSE);
         }
@@ -443,7 +435,7 @@ public class COSString extends COSBase
 
     /**
      * visitor pattern double dispatch method.
-     *
+     * 
      * @param visitor The object to notify when visiting this object.
      * @return any object, depending on the visitor implementation, or null
      * @throws IOException If an error occurs while visiting this object.
