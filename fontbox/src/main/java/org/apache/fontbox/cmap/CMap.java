@@ -171,6 +171,19 @@ public class CMap
      */
     private int toInt(List<Byte> data)
     {
+        if (data.size() == 2)
+        {
+            return toInt2(data);
+        }
+
+        int hi = toInt2(data.subList(0, 2)) & 0x3FF;
+        int lo = toInt2(data.subList(2, 4)) & 0x3FF;
+        return ((hi << 10) | lo) + 0x10000;
+    }
+
+    private int toInt2(List<Byte> data)
+    {
+
         int code = 0;
         for (byte b : data)
         {

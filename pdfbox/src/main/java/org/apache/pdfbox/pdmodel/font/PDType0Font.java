@@ -287,8 +287,7 @@ public class PDType0Font extends PDFont
         }
         else if (encoding.indexOf("-UTF16-") > 0)
         {
-            int cid = codeToCID(code);
-            return new String(Character.toChars(cid));
+            return new String(Character.toChars(code));
         }
         else if (isCMapPredefined && cMapUCS2 != null)
         {
